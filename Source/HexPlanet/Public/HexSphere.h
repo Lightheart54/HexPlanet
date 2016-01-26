@@ -51,6 +51,8 @@ public:
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
 
+	virtual void OnConstruction(const FTransform& Transform) override;
+
 	virtual void Destroyed() override;
 
 #if WITH_EDITOR
@@ -58,7 +60,9 @@ public:
 
 
 	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
-		bool renderNodesAndEdges;
+		bool renderEdges;
+	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
+		bool renderNodes;
 	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
 		bool displayEdgeLengths;
 #endif

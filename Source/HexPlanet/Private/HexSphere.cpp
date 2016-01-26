@@ -29,7 +29,8 @@ AHexSphere::AHexSphere()
 #ifdef WITH_EDITOR
 	debugMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugMeshRoot"));
 	debugMesh->AttachTo(RootComponent);
-	renderNodesAndEdges = false;
+	renderNodes = false;
+	renderEdges = true;
 	displayEdgeLengths = false;
 #endif // WITH_EDITOR
 
@@ -48,6 +49,12 @@ void AHexSphere::Tick( float DeltaTime )
 {
 	Super::Tick( DeltaTime );
 
+}
+
+void AHexSphere::OnConstruction(const FTransform& beginningTransform)
+{
+	Super::OnConstruction(beginningTransform);
+	calculateMesh();
 }
 
 void AHexSphere::Destroyed()
@@ -82,7 +89,8 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 	{
 		rebuildInstances();
 	}
-	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderNodesAndEdges)))
+	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderNodes))
+		 ||(PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderEdges)))
 	{
 		rebuildDebugMesh();
 	}
@@ -190,23 +198,35 @@ void AHexSphere::buildDebugMesh()
 {
 	GridNodePtrList gridNodes = gridGenerator->getNodes();
 	FVector centerPoint = GetActorLocation();
-	for (const GridNodePtr& gridNode : gridNodes)
+	if (renderNodes)
 	{
-		debugMesh->DrawPoint(centerPoint+(gridNode->getPosition())*radius/gridGenerator->getRadius(), FLinearColor::Blue, 8, 2);
+		for (const GridNodePtr& gridNode : gridNodes)
+		{
+			debugMesh->DrawPoint(centerPoint + (gridNode->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Blue, 8, 2);
+		}
 	}
 
 	GridEdgePtrList gridEdges = gridGenerator->getEdges();
 	for (const GridEdgePtr& gridEdge : gridEdges)
 	{
-		debugMesh->DrawLine(centerPoint+(gridEdge->getStartPoint()->getPosition())*radius / gridGenerator->getRadius(),
-			centerPoint + (gridEdge->getEndPoint()->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Green, 2, 0.5);
-		debugMesh->DrawPoint(centerPoint + (gridEdge->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Red, 8, 2);
+		if (renderEdges)
+		{
+			debugMesh->DrawLine(centerPoint+(gridEdge->getStartPoint()->getPosition())*radius / gridGenerator->getRadius(),
+						centerPoint + (gridEdge->getEndPoint()->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Green, 2, 0.5);
+		}
+		if (renderNodes)
+		{
+			debugMesh->DrawPoint(centerPoint + (gridEdge->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Red, 8, 2);
+		}
 	}
 
-	GridTilePtrList gridTiles = gridGenerator->getTiles();
-	for (const GridTilePtr& gridTile : gridTiles)
+	if (renderNodes)
 	{
-		debugMesh->DrawPoint(centerPoint + (gridTile->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Yellow, 8, 2);
+		GridTilePtrList gridTiles = gridGenerator->getTiles();
+			for (const GridTilePtr& gridTile : gridTiles)
+			{
+				debugMesh->DrawPoint(centerPoint + (gridTile->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Yellow, 8, 2);
+			}
 	}
 }
 
@@ -214,7 +234,7 @@ void AHexSphere::rebuildDebugMesh()
 {
 	debugMesh->Flush();
 
-	if (renderNodesAndEdges)
+	if (renderNodes || renderEdges)
 	{
 		buildDebugMesh();
 	}
