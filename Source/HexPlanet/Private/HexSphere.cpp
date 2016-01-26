@@ -132,7 +132,7 @@ void AHexSphere::rebuildInstances()
 		FVector zDir;
 		float localSphereRadius;
 		tileCenter.ToDirectionAndLength(zDir, localSphereRadius);
-		float vectorRatio = radius / localSphereRadius;
+		float vectorRatio = radius / gridGenerator->getRadius();
 		tileCenter *= vectorRatio;
 		FVector tileInnerRadiusVec = tileEdges[0]->getPosition() * vectorRatio;
 		tileInnerRadiusVec -= tileInnerRadiusVec.ProjectOnTo(zDir);
