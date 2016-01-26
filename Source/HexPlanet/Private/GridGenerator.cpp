@@ -49,7 +49,9 @@ GridGenerator::GridGenerator(const float& _radius /*= 1.0*/, const uint8& _numSu
 
 GridGenerator::~GridGenerator()
 {
-
+	deleteOwnedItems(tiles);
+	deleteOwnedItems(nodes);
+	deleteOwnedItems(edges);
 }
 
 void GridGenerator::rebuildGrid(const float& newRadius /*= 1.0*/, const uint8& newNumSubdivisions /*= 0*/)
@@ -134,9 +136,9 @@ float GridGenerator::getSurfaceArea() const
 
 void GridGenerator::buildNewGrid()
 {
-	tiles.Empty(32);
-	nodes.Empty(92);
-	edges.Empty(30);
+	deleteOwnedItems(tiles);
+	deleteOwnedItems(nodes);
+	deleteOwnedItems(edges);
 	createBaseGrid();
 	for (size_t i = 0; i < numSubdivisions; i++)
 	{
@@ -237,7 +239,11 @@ void GridGenerator::createBaseGrid()
 		subdivideTriangle(triangleSet.Key, triangleSet.Value[0], nodeToNodesMap);
 		subdivideTriangle(triangleSet.Key, triangleSet.Value[1], nodeToNodesMap);
 	}
-	edges.Empty(edges.Num()*4);
+	for (auto setPair : baseTriangleSets)
+	{
+		delete setPair.Key;
+	}
+	baseTriangleSets.Empty();
 
 	//now make our new tiles
 	uint32 debugOut = nodeToNodesMap.Num();
@@ -250,90 +256,24 @@ void GridGenerator::createBaseGrid()
 
 void GridGenerator::subdivideTriangle(const GridEdgePtr& baseEdge, const FVector& TriangleCap, TMap<GridNodePtr, GridNodePtrList>& nodeToNodesMapOut)
 {
-	GridNodePtr node1 = baseEdge->getEndPoints()[0];
+	GridNodePtr node1 = baseEdge->getStartPoint();
 	node1->edges.Empty();
-	FVector vec1 = node1->getPosition();
-	GridNodePtr node2 = baseEdge->getEndPoints()[1];
+	GridNodePtr node2 = baseEdge->getEndPoint();
 	node2->edges.Empty();
-	FVector vec2 = node2->getPosition();
 	GridNodePtr node3 = createNode(TriangleCap);
-	FVector vec3 = node3->getPosition();
-
 	//First we need our new tile center
-	GridNodePtr node123 = createNode(vec1+vec2+vec3);
+	GridNodePtr node123 = createNode(node1->getPosition() +node2->getPosition() +node3->getPosition());
 	addToMappedList(nodeToNodesMapOut, node1, node123);
 	addToMappedList(nodeToNodesMapOut, node2, node123);
 	addToMappedList(nodeToNodesMapOut, node3, node123);
-
-	////build our new cornerNodes, remember to always normalize back to the radius
-	//GridNodePtr node112 = createNode(vec1, vec2, 1.0/3);
-	//addToMappedList(nodeToNodesMapOut, node1, node112);
-	//addToMappedList(nodeToNodesMapOut, node123, node112); 
-	//GridNodePtr node122 = createNode(vec1, vec2, 2.0/3);
-	//addToMappedList(nodeToNodesMapOut, node2, node122);
-	//addToMappedList(nodeToNodesMapOut, node123, node122);
-	//GridNodePtr node113 = createNode(vec1, vec3, 1.0/3);
-	//addToMappedList(nodeToNodesMapOut, node1, node113);
-	//addToMappedList(nodeToNodesMapOut, node123, node113);
-	//GridNodePtr node133 = createNode(vec1, vec3, 2.0/3);
-	//addToMappedList(nodeToNodesMapOut, node3, node133);
-	//addToMappedList(nodeToNodesMapOut, node123, node133);
-	//GridNodePtr node223 = createNode(vec2, vec3, 1.0/3);
-	//addToMappedList(nodeToNodesMapOut, node2, node223);
-	//addToMappedList(nodeToNodesMapOut, node123, node223);
-	//GridNodePtr node233 = createNode(vec2, vec3, 2.0/3);
-	//addToMappedList(nodeToNodesMapOut, node3, node233);
-	//addToMappedList(nodeToNodesMapOut, node123, node233);
 }
-
-
-//GridNodePtr GridGenerator::createNode(const FVector& vec1, const FVector& vec2, const float& ratioAlongPath)
-//{
-//	FVector v1v2 = vec2 - vec1;
-//	FVector newPos = vec1 + ratioAlongPath*v1v2;
-//	return createNode(newPos);
-//
-//	//FVector UV1;
-//	//float magV1;
-//	//vec1.ToDirectionAndLength(UV1, magV1);
-//	//FVector UV2;
-//	//float magV2;
-//	//vec2.ToDirectionAndLength(UV2, magV2);
-//	//float angleInterval = FMath::Acos(FVector::DotProduct(UV1, UV2));
-//	//float angleInDegrees = FMath::RadiansToDegrees(angleInterval);
-//	//FVector rotationAxis = FVector::CrossProduct(vec1, vec2);
-//	//rotationAxis /= FMath::Sqrt(FVector::DotProduct(rotationAxis, rotationAxis));
-//	
-//
-///*
-//	//subdivision along great circle see: http://williams.best.vwh.net/avform.htm
-//	FVector2D vec1S = UV1.UnitCartesianToSpherical();
-//	FVector2D vec2S = UV2.UnitCartesianToSpherical();
-//	float A = FMath::Sin((1 - ratioAlongPath)*angleInterval) / FMath::Sin(angleInterval);
-//	float B = FMath::Sin(ratioAlongPath*angleInterval) / FMath::Sin(angleInterval);
-//	float x = A*FMath::Cos(vec1S.Y)*FMath::Cos(vec1S.X) + B*FMath::Cos(vec2S.Y)*FMath::Cos(vec2S.X);
-//	float y = A*FMath::Cos(vec1S.Y)*FMath::Sin(vec1S.X) + B*FMath::Cos(vec2S.Y)*FMath::Sin(vec2S.X);
-//	float z = A*FMath::Sin(vec1S.Y) + B*FMath::Sin(vec2S.Y);
-//	FVector newPos(x, y, z);
-//	return createNode(newPos);*/
-//
-//
-//	/*FVector vec123 = (vec1 + vec2 + vec3) / 3;
-//	FVector::UnitCartesianToSpherical()
-//	vec123 *= radius / FMath::Sqrt(FVector::DotProduct(vec123, vec123));
-//	if (nodes.Contains(vec123))
-//	{
-//		return nodes[vec123];
-//	}*/
-//	//return createNode(vec123);
-//}
 
 void GridGenerator::subdivideGrid()
 {
 	GridTileMap oldTiles = tiles;
 	GridEdgeMap oldEdges = edges;
-	tiles.Empty(nodes.Num() + 2*edges.Num());
-	edges.Empty(edges.Num() * 4);
+	tiles.Empty(nodes.Num());
+	edges.Empty(3*edges.Num());
 
 	TMap<GridNodePtr, GridNodePtrList> newTileCornerMap;
 	for (const auto& oldEdge : oldEdges)
@@ -343,7 +283,9 @@ void GridGenerator::subdivideGrid()
 		{
 			subdivideTriangle(oldEdge.Value, edgeTile->getPosition(), newTileCornerMap);
 		}
-	}	
+	}
+	deleteOwnedItems(oldEdges);
+	deleteOwnedItems(oldTiles);
 
 	//now make our new tiles
 	for (auto& newTileCornerPair : newTileCornerMap)
@@ -360,14 +302,14 @@ GridNodePtr GridGenerator::createNode(FVector pos)
 	{
 		return nodes[createKeyForVector(pos)];
 	}
-	GridNodePtr newNode = MakeShareable(new GridNode(pos));
+	GridNodePtr newNode = new GridNode(pos);
 	nodes.Add(newNode->mapKey(), newNode);
 	return newNode;
 }
 
 GridEdgePtr GridGenerator::createEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint)
 {
-	GridEdgePtr newEdge = MakeShareable(new GridEdge(startPoint, endPoint));
+	GridEdgePtr newEdge = new GridEdge(startPoint, endPoint);
 	startPoint->edges.Add(newEdge);
 	endPoint->edges.Add(newEdge);
 	return newEdge;
@@ -389,7 +331,7 @@ GridEdgePtr GridGenerator::createAndRegisterEdge(const GridNodePtr& startPoint, 
 
 GridTilePtr GridGenerator::createTile(const GridEdgePtrList& edgeLoop)
 {
-	GridTilePtr newTile = MakeShareable(new GridTile(edgeLoop));
+	GridTilePtr newTile = new GridTile(edgeLoop);
 	tiles.Add(newTile->mapKey(),newTile);
 	registerTileWithEdges(newTile);
 	return newTile;
@@ -426,20 +368,19 @@ GridEdgePtrList GridGenerator::createEdgeLoop(GridNodePtrList loopNodes)
 	do
 	{
 		//find the two other closest corners
-		FVector currentPos = nextNode->getPosition();
 		loopNodes.Sort(
-			[&currentPos](const GridNodePtr& c1, const GridNodePtr& c2)->bool
+			[&nextNode](const GridNode& c1, const GridNode& c2)->bool
 		{
-			FVector c1Pos = c1->getPosition() - currentPos;
-			FVector c2Pos = c2->getPosition() - currentPos;
+			FVector c1Pos = c1.getPosition() - nextNode->getPosition();
+			FVector c2Pos = c2.getPosition() - nextNode->getPosition();
 			return FVector::DotProduct(c1Pos, c1Pos) < FVector::DotProduct(c2Pos, c2Pos);
 		});
 		GridNodePtr option1 = loopNodes[1]; // cornerPoint[0] should now be the current point
 		GridNodePtr option2 = loopNodes[2]; // cornerPoint[0] should now be the current point
-		FVector c1Pos = option1->getPosition() - currentPos;
-		FVector c2Pos = option2->getPosition() - currentPos;
+		FVector c1Pos = option1->getPosition() - nextNode->getPosition();
+		FVector c2Pos = option2->getPosition() - nextNode->getPosition();
 		FVector c1Xc2 = FVector::CrossProduct(c1Pos, c2Pos);
-		float orderIndicator = FVector::DotProduct(c1Xc2, currentPos);
+		float orderIndicator = FVector::DotProduct(c1Xc2, nextNode->getPosition());
 		//if the orderIndicator is negative, it indicates that c1Xc2 is in the opposite
 		//direction of the position vector for the current point, which we want
 		//therefore option2 is the next point, otherwise option1 is the correct choice

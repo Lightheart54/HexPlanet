@@ -19,6 +19,10 @@ AHexSphere::AHexSphere()
 	radius = 50;
 	numSubvisions = 0;
 	gridGenerator = new GridGenerator(radius, numSubvisions);
+	surfaceArea = gridGenerator->getSurfaceArea();
+	volume = gridGenerator->getVolume();
+	GridTilePtrList tiles = gridGenerator->getTiles();
+	numTiles = tiles.Num();
 	PentagonMeshInnerRadius = 20;
 	HexagonMeshInnerRadius = 20;
 	tileFillRatio = 0.95;
@@ -44,12 +48,6 @@ void AHexSphere::Tick( float DeltaTime )
 {
 	Super::Tick( DeltaTime );
 
-}
-
-void AHexSphere::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-	calculateMesh();
 }
 
 void AHexSphere::Destroyed()
@@ -149,9 +147,9 @@ void AHexSphere::rebuildInstances()
 			GridTilePtrList gridNeighbors = tile->getNeighbors();
 			GridTilePtr refNeighbor = gridNeighbors[0];
 			FVector refenceVec = refNeighbor->getPosition();
-			gridNeighbors.Sort([&refenceVec](const GridTilePtr& neighbor1, const GridTilePtr& neighbor2)->bool
+			gridNeighbors.Sort([&refenceVec](const GridTile& neighbor1, const GridTile& neighbor2)->bool
 			{
-				return FVector::DistSquared(refenceVec, neighbor1->getPosition()) > FVector::DistSquared(refenceVec, neighbor2->getPosition());
+				return FVector::DistSquared(refenceVec, neighbor1.getPosition()) > FVector::DistSquared(refenceVec, neighbor2.getPosition());
 			});
 			GridTilePtr oppositeNeighbor = gridNeighbors[0];
 			yVec = refenceVec - oppositeNeighbor->getPosition();
@@ -200,8 +198,8 @@ void AHexSphere::buildDebugMesh()
 	GridEdgePtrList gridEdges = gridGenerator->getEdges();
 	for (const GridEdgePtr& gridEdge : gridEdges)
 	{
-		debugMesh->DrawLine(centerPoint+(gridEdge->getEndPoints()[0]->getPosition())*radius / gridGenerator->getRadius(),
-			centerPoint + (gridEdge->getEndPoints()[1]->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Green, 2, 0.5);
+		debugMesh->DrawLine(centerPoint+(gridEdge->getStartPoint()->getPosition())*radius / gridGenerator->getRadius(),
+			centerPoint + (gridEdge->getEndPoint()->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Green, 2, 0.5);
 		debugMesh->DrawPoint(centerPoint + (gridEdge->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Red, 8, 2);
 	}
 

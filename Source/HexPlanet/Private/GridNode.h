@@ -9,15 +9,22 @@ public:
 	GridNode(const FVector& _position);
 	~GridNode();
 
-	GridEdgePtrList getEdges() const;
+	inline const GridEdgePtrList& getEdges() const
+	{
+		return edges;
+	}
 	GridTilePtrList getTiles() const;
 	GridNodePtrList getNodes() const;
-	FVector getPosition() const;
 	FString mapKey() const;
+	inline const FVector& getPosition() const
+	{
+		return myPosition;
+	}
+
 protected:
 	friend class GridGenerator;
 
-	GridEdgeWPtrList edges;
+	GridEdgePtrList edges;
 	FVector myPosition;
 	
 };

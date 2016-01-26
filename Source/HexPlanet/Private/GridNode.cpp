@@ -15,17 +15,12 @@ GridNode::~GridNode()
 
 }
 
-GridEdgePtrList GridNode::getEdges() const
-{
-	return lockList(edges);
-}
-
 GridTilePtrList GridNode::getTiles() const
 {
 	GridTilePtrList neighbors;
-	for (const GridEdgeWPtr& edge : edges)
+	for (const GridEdgePtr& edge : edges)
 	{
-		GridTilePtrList edgeTiles = edge.Pin()->getTiles();
+		GridTilePtrList edgeTiles = edge->getTiles();
 		for (const GridTilePtr& edgeTile : edgeTiles)
 		{
 			neighbors.AddUnique(edgeTile);
@@ -37,25 +32,18 @@ GridTilePtrList GridNode::getTiles() const
 GridNodePtrList GridNode::getNodes() const
 {
 	GridNodePtrList connected;
-	for (const GridEdgeWPtr& edge : edges)
+	for (const GridEdgePtr& edge : edges)
 	{
-		GridEdgePtr edgeptr = edge.Pin();
-		GridNodePtrList edgeCorners = edgeptr->getEndPoints();
-		if (edgeCorners[0].Get() == this)
+		if (edge->getStartPoint() == this)
 		{
-			connected.Add(edgeCorners.Last());
+			connected.Add(edge->getEndPoint());
 		}
 		else
 		{
-			connected.Add(edgeCorners[0]);
+			connected.Add(edge->getStartPoint());
 		}
 	}
 	return connected;
-}
-
-FVector GridNode::getPosition() const
-{
-	return myPosition;
 }
 
 FString GridNode::mapKey() const

@@ -11,9 +11,15 @@ public:
 	GridTile(const GridEdgePtrList& tileEdges);
 	~GridTile();
 	GridTilePtrList getNeighbors() const;
-	GridEdgePtrList getEdges() const;
+	inline const GridEdgePtrList& getEdges() const
+	{
+		return edges;
+	}
 	GridNodePtrList getNodes() const;
-	FVector getPosition() const;
+	inline const FVector& getPosition() const
+	{
+		return myPosition;
+	}
 	float getArea() const;
 	float getEnclosedVolume() const;
 	FString mapKey()const;
@@ -21,5 +27,5 @@ private:
 	friend class GridGenerator;
 
 	FVector myPosition;
-	GridEdgeWPtrList edges;
+	GridEdgePtrList edges;
 };

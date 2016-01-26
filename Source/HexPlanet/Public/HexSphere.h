@@ -51,8 +51,6 @@ public:
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
 
-	virtual void PostInitializeComponents() override;
-
 	virtual void Destroyed() override;
 
 #if WITH_EDITOR

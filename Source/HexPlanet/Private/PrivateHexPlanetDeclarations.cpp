@@ -10,5 +10,5 @@ FString createKeyForVector(const FVector& vectorKey)
 	float mag;
 	vectorKey.ToDirectionAndLength(unitVec, mag);
 	FVector2D spherical = unitVec.UnitCartesianToSpherical();
-	return FString::FromInt(spherical.X * 100) + ", " + FString::FromInt(spherical.Y * 100);
+	return FString::FromInt(spherical.X * 10000) + ", " + FString::FromInt(spherical.Y * 10000);
 }

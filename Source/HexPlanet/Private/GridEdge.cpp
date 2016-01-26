@@ -7,38 +7,18 @@
 
 
 GridEdge::GridEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint)
+	: pStartPoint(startPoint), pEndPoint(endPoint)
 {
-	nodes.Add(startPoint);
-	nodes.Add(endPoint);
-	FVector startPos = startPoint->getPosition();
-	FVector endPos = endPoint->getPosition();
-	myPosition = (startPos + endPos) / 2;
+	myPosition = (pStartPoint->getPosition() + pEndPoint->getPosition()) / 2;
 }
 
 GridEdge::~GridEdge()
 {
 }
 
-GridTilePtrList GridEdge::getTiles() const
-{
-	return lockList(tiles);
-}
-
-GridNodePtrList GridEdge::getEndPoints() const
-{
-	return lockList(nodes);
-}
-
-FVector GridEdge::getPosition() const
-{
-	return myPosition;
-}
-
 float GridEdge::getLength() const
 {
-	FVector startPoint = nodes[0].Pin()->getPosition();
-	FVector endPoint = nodes[1].Pin()->getPosition();
-	return FVector::Dist(startPoint, endPoint);
+	return FVector::Dist(pStartPoint->getPosition(), pEndPoint->getPosition());
 }
 
 FString GridEdge::mapKey() const
