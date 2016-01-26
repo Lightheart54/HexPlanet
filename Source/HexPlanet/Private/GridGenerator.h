@@ -16,7 +16,6 @@ public:
 	~GridGenerator();
 
 	void rebuildGrid(const float& newRadius = 1.0, const uint8& newNumSubdivisions = 0);
-	void rebuildGridForAGivenTileArea(const float& newRadius, const float& tileArea);
 
 	GridTilePtr getTile(const FVector& vec) const;
 	GridEdgePtr getEdge(const FVector& vec) const;
@@ -33,11 +32,15 @@ public:
 private:
 	void buildNewGrid();
 	void createBaseGrid();
+
+	void subdivideTriangle(const GridEdgePtr& baseEdge, const FVector& TriangleCap, TMap<GridNodePtr, GridNodePtrList>& nodeToNodesMapOut);
+	//GridNodePtr createNode(const FVector& vec1, const FVector& vec2, const float& ratioAlongPath);
+
 	void subdivideGrid();
 	void cleanUpMemberWPtrLists() const;
 
 
-	GridNodePtr createNode(const FVector& pos);
+	GridNodePtr createNode(FVector pos);
 	GridEdgePtr createEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint);
 	GridEdgePtr createAndRegisterEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint);
 	GridTilePtr createTile(const GridEdgePtrList& edgeLoop);
@@ -46,7 +49,6 @@ private:
 	GridTilePtr createTile(const GridNodePtrList& loopNodes);
 	GridEdgePtrList createEdgeLoop(const TArray<FVector>& nodeLocs);
 	GridEdgePtrList createEdgeLoop(GridNodePtrList loopNodes);
-
 	float radius;
 	uint8 numSubdivisions;
 

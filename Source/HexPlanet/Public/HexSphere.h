@@ -5,7 +5,6 @@
 #include "GameFramework/Actor.h"
 #include "HexSphere.generated.h"
 
-class UProceduralMeshComponent;
 class GridGenerator;
 
 UCLASS()
@@ -29,8 +28,22 @@ public:
 	UPROPERTY(EditAnywhere(ClampMin = "0.1", UIMin = "0.1"))
 	float radius;
 
+	UPROPERTY(EditAnywhere(ClampMin = "0.1", UIMin = "0.1", ClampMax = "1.1", UIMax = "1.1"))
+	float tileFillRatio;
+
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "0", UIMin = "0"))
 	uint32 numSubvisions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
+	UStaticMesh* PentagonMesh; 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
+	float PentagonMeshInnerRadius;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
+	UStaticMesh* HexagonMesh;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
+	float HexagonMeshInnerRadius;
+
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -38,18 +51,34 @@ public:
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
 
-	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void PostInitializeComponents() override;
 
 	virtual void Destroyed() override;
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+
+
+	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
+		bool renderNodesAndEdges;
+	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
+		bool displayEdgeLengths;
 #endif
 
 
 protected:
-	void rebuildMesh();
-	UProceduralMeshComponent* createMeshForTile(const FVector& tileCenter, const FVector& tileCorner1, const uint8& numCorners);
+	void calculateMesh();
+	void rebuildInstances();
+	UInstancedStaticMeshComponent* hexagonMeshComponent;
+	UInstancedStaticMeshComponent* pentagonMeshComponent;
 	USceneComponent* gridRoot;
 	GridGenerator* gridGenerator;
+
+#if WITH_EDITOR
+	ULineBatchComponent* debugMesh;
+	TArray<UTextRenderComponent*> debugTextArray;
+	void buildDebugMesh();
+	void rebuildDebugMesh();
+	void updateDebugText();
+#endif
 };

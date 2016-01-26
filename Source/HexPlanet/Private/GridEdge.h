@@ -14,8 +14,8 @@ public:
 	GridTilePtrList getTiles() const;
 	GridNodePtrList getEndPoints() const;
 	FVector getPosition() const;
-	float getLength();
-
+	float getLength() const;
+	FString mapKey()const;
 protected:
 	friend class GridGenerator;
 

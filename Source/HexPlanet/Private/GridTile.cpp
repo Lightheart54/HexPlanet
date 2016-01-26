@@ -90,3 +90,8 @@ float GridTile::getEnclosedVolume() const
 	}
 	return volume;
 }
+
+FString GridTile::mapKey() const
+{
+	return createKeyForVector(myPosition);
+}

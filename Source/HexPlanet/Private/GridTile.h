@@ -16,7 +16,7 @@ public:
 	FVector getPosition() const;
 	float getArea() const;
 	float getEnclosedVolume() const;
-
+	FString mapKey()const;
 private:
 	friend class GridGenerator;
 

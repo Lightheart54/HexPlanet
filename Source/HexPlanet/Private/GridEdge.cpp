@@ -34,9 +34,14 @@ FVector GridEdge::getPosition() const
 	return myPosition;
 }
 
-float GridEdge::getLength()
+float GridEdge::getLength() const
 {
 	FVector startPoint = nodes[0].Pin()->getPosition();
 	FVector endPoint = nodes[1].Pin()->getPosition();
 	return FVector::Dist(startPoint, endPoint);
+}
+
+FString GridEdge::mapKey() const
+{
+	return createKeyForVector(myPosition);
 }

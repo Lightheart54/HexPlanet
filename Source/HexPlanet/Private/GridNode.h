@@ -13,7 +13,7 @@ public:
 	GridTilePtrList getTiles() const;
 	GridNodePtrList getNodes() const;
 	FVector getPosition() const;
-
+	FString mapKey() const;
 protected:
 	friend class GridGenerator;
 

@@ -57,3 +57,8 @@ FVector GridNode::getPosition() const
 {
 	return myPosition;
 }
+
+FString GridNode::mapKey() const
+{
+	return createKeyForVector(myPosition);
+}
