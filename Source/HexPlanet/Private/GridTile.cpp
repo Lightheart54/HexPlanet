@@ -26,9 +26,13 @@ GridTilePtrList GridTile::getNeighbors() const
 	for (const GridEdgePtr& edge : edges)
 	{
 		GridTilePtrList edgeTiles = edge->getTiles();
-		for (const GridTilePtr& edgeTile : edgeTiles)
+		if (edgeTiles[0] == this)
 		{
-			neighbors.AddUnique(edgeTile);
+			neighbors.Add(edgeTiles[1]);
+		}
+		else
+		{
+			neighbors.Add(edgeTiles[0]);
 		}
 	}
 	return neighbors;

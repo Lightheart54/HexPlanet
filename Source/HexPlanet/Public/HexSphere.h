@@ -6,8 +6,9 @@
 #include "HexSphere.generated.h"
 
 class GridGenerator;
+class UGridTileComponent;
 
-UCLASS()
+UCLASS(ClassGroup = "HexGrid", meta = (BlueprintSpawnableComponent))
 class HEXPLANET_API AHexSphere : public AActor
 {
 	GENERATED_BODY()
@@ -16,22 +17,25 @@ public:
 	// Sets default values for this actor's properties
 	AHexSphere();
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
 	float surfaceArea;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
 	float volume;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
 	uint32 numTiles;
 
-	UPROPERTY(EditAnywhere(ClampMin = "0.1", UIMin = "0.1"))
+	UPROPERTY(EditAnywhere, Category = "Grid Properties",
+		meta = (ClampMin = "0.1", UIMin = "0.1"))
 	float radius;
 
-	UPROPERTY(EditAnywhere(ClampMin = "0.1", UIMin = "0.1", ClampMax = "1.1", UIMax = "1.1"))
+	UPROPERTY(EditAnywhere, Category = "Grid Properties",
+		meta = (ClampMin = "0.1", UIMin = "0.1", ClampMax = "1.1", UIMax = "1.1"))
 	float tileFillRatio;
 
-	UPROPERTY(EditAnywhere, meta = (ClampMin = "0", UIMin = "0"))
+	UPROPERTY(EditAnywhere, Category = "Grid Properties",
+		meta = (ClampMin = "0", UIMin = "0"))
 	uint32 numSubvisions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
@@ -50,21 +54,31 @@ public:
 	
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
-
-	virtual void OnConstruction(const FTransform& Transform) override;
-
+	
 	virtual void Destroyed() override;
+
+	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
+
+	UFUNCTION(BlueprintPure, Category = "GridNavigation")
+	TArray<UGridTileComponent*> GetGridTiles() const;
+
+	UFUNCTION(BlueprintPure, Category = "GridNavigation")
+	UGridTileComponent* GetGridTile(const FString& tileKey) const;
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 
 
-	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool renderEdges;
-	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool renderNodes;
-	UPROPERTY(EditAnywhere, Category = "Debug Grid Display")
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool displayEdgeLengths;
+	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay")
+		bool displayTileMeshes;
+	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay", meta = (ToolTip = "Warning This Can Have Significant Performance Implications"))
+		bool displayCollisionTileMeshes;
 #endif
 
 
@@ -73,6 +87,7 @@ protected:
 	void rebuildInstances();
 	UInstancedStaticMeshComponent* hexagonMeshComponent;
 	UInstancedStaticMeshComponent* pentagonMeshComponent;
+	TMap<FString,UGridTileComponent*> GridTiles;
 	USceneComponent* gridRoot;
 	GridGenerator* gridGenerator;
 

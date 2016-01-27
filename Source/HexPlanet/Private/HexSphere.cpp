@@ -2,13 +2,13 @@
 
 #include "HexPlanet.h"
 #include "HexSphere.h"
-#include "ProceduralMeshComponent.h"
 #include "GridGenerator.h"
+#include "GridTileComponent.h"
 
 // Sets default values
 AHexSphere::AHexSphere() 
 {
-	USphereComponent* SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootComponent"));
+	USceneComponent* SphereComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent = SphereComponent;	
 	gridRoot = CreateDefaultSubobject<USceneComponent>(TEXT("GridRoot"));
 	gridRoot->AttachTo(RootComponent);
@@ -30,8 +30,10 @@ AHexSphere::AHexSphere()
 	debugMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugMeshRoot"));
 	debugMesh->AttachTo(RootComponent);
 	renderNodes = false;
-	renderEdges = true;
+	renderEdges = false;
 	displayEdgeLengths = false;
+	displayTileMeshes = true;
+	displayCollisionTileMeshes = false;
 #endif // WITH_EDITOR
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -51,17 +53,33 @@ void AHexSphere::Tick( float DeltaTime )
 
 }
 
-void AHexSphere::OnConstruction(const FTransform& beginningTransform)
-{
-	Super::OnConstruction(beginningTransform);
-	calculateMesh();
-}
-
 void AHexSphere::Destroyed()
 {
 	delete gridGenerator;
 	gridGenerator = nullptr;
 	AActor::Destroyed();
+}
+
+void AHexSphere::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph)
+{
+	Super::PostLoadSubobjects(OuterInstanceGraph);
+	calculateMesh();
+}
+
+TArray<UGridTileComponent*> AHexSphere::GetGridTiles() const
+{
+	TArray<UGridTileComponent*> tilePtrs;
+	GridTiles.GenerateValueArray(tilePtrs);
+	return tilePtrs;
+}
+
+UGridTileComponent* AHexSphere::GetGridTile(const FString& tileKey) const
+{
+	if (GridTiles.Contains(tileKey))
+	{
+		return GridTiles[tileKey];
+	}
+	return nullptr;
 }
 
 #if WITH_EDITOR  
@@ -88,6 +106,18 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, tileFillRatio)))
 	{
 		rebuildInstances();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayTileMeshes))
+	{
+		hexagonMeshComponent->SetVisibility(displayTileMeshes);
+		pentagonMeshComponent->SetVisibility(displayTileMeshes);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayCollisionTileMeshes))
+	{
+		for (auto& pointerPair : GridTiles)
+		{
+			pointerPair.Value->SetVisibility(displayCollisionTileMeshes);
+		}
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderNodes))
 		 ||(PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderEdges)))
@@ -125,6 +155,8 @@ void AHexSphere::rebuildInstances()
 	pentagonMeshComponent->SetStaticMesh(PentagonMesh);
 	hexagonMeshComponent->SetStaticMesh(HexagonMesh);
 	GridTilePtrList tiles = gridGenerator->getTiles();
+	TMap<FString, UGridTileComponent*> oldTiles = GridTiles;
+	GridTiles.Empty(tiles.Num());
 	for (const GridTilePtr& tile : tiles)
 	{		
 		GridEdgePtrList tileEdges = tile->getEdges();
@@ -146,13 +178,13 @@ void AHexSphere::rebuildInstances()
 		tileInnerRadiusVec -= tileInnerRadiusVec.ProjectOnTo(zDir);
 		float tileInnerRadius = FMath::Sqrt(FVector::DotProduct(tileInnerRadiusVec, tileInnerRadiusVec));
 		FVector yVec;
+		GridTilePtrList gridNeighbors = tile->getNeighbors();
 		if (tileEdges.Num() == 5)
 		{
 			yVec = tileInnerRadiusVec;
 		}
 		else
 		{
-			GridTilePtrList gridNeighbors = tile->getNeighbors();
 			GridTilePtr refNeighbor = gridNeighbors[0];
 			FVector refenceVec = refNeighbor->getPosition();
 			gridNeighbors.Sort([&refenceVec](const GridTile& neighbor1, const GridTile& neighbor2)->bool
@@ -171,21 +203,62 @@ void AHexSphere::rebuildInstances()
 		float tangetRad;
 		xVec.ToDirectionAndLength(xDir, tangetRad);
 		
-		FTransform instanceTransform(xDir, yDir, zDir, tileCenter);
-
+		UStaticMesh* myMesh = nullptr;
+		uint32 instanceMeshNum = 0;
+		UInstancedStaticMeshComponent* tileMapMesher;
+		FVector scaleVector = FVector(tileInnerRadius* tileFillRatio, tileInnerRadius* tileFillRatio, tileInnerRadius);
 		if (tileEdges.Num() == 5)
 		{
-			FVector scaleVector(tileInnerRadius* tileFillRatio / PentagonMeshInnerRadius, tileInnerRadius* tileFillRatio / PentagonMeshInnerRadius, tileInnerRadius / PentagonMeshInnerRadius);
-			instanceTransform.SetScale3D(scaleVector);
-			pentagonMeshComponent->AddInstance(instanceTransform);
+			scaleVector /= PentagonMeshInnerRadius;
+			tileMapMesher = pentagonMeshComponent;
+			myMesh = PentagonMesh;
 		}
 		else
 		{
-			FVector scaleVector(tileInnerRadius* tileFillRatio / HexagonMeshInnerRadius, tileInnerRadius* tileFillRatio / HexagonMeshInnerRadius, tileInnerRadius / HexagonMeshInnerRadius);
-			instanceTransform.SetScale3D(scaleVector);
-			hexagonMeshComponent->AddInstance(instanceTransform);
+			scaleVector /= HexagonMeshInnerRadius;
+			tileMapMesher = hexagonMeshComponent;
+			myMesh = HexagonMesh;
 		}
+
+		UGridTileComponent* thisTile;
+		FString tileKey = tile->mapKey();
+		if (oldTiles.Contains(tileKey))
+		{
+			thisTile = oldTiles[tileKey];
+			thisTile->gridNeighborKeys.Empty(gridNeighbors.Num());
+			oldTiles.Remove(tileKey);
+		}
+		else
+		{
+			thisTile = NewObject<UGridTileComponent>(this);
+			thisTile->AttachTo(gridRoot);
+			thisTile->gridOwner = this;
+			thisTile->tileKey = tileKey;
+		}
+		thisTile->SetVisibility(displayCollisionTileMeshes);
+		for (const GridTilePtr gridNeighborPtr : gridNeighbors)
+		{
+			thisTile->gridNeighborKeys.Add(gridNeighborPtr->mapKey());
+		}
+
+		FBox meshBB = myMesh->GetBoundingBox();
+		FTransform instanceTransform(xDir, yDir, zDir, tileCenter);
+		instanceTransform.SetScale3D(scaleVector);
+		uint32 instanceNum = tileMapMesher->AddInstance(instanceTransform);
+		thisTile->mapMesh = tileMapMesher;
+		thisTile->instanceMeshNum = instanceNum;
+		instanceTransform.SetLocation(tileCenter+ 1.5*meshBB.Max.Z*zDir);
+		thisTile->SetRelativeTransform(instanceTransform);
+		thisTile->SetStaticMesh(myMesh);
+		GridTiles.Add(thisTile->tileKey,thisTile);
 	}
+
+	for (auto& pointerPair : oldTiles)
+	{
+		pointerPair.Value->DetachFromParent();
+		pointerPair.Value->DestroyComponent();
+	}
+	oldTiles.Empty();
 
 #ifdef WITH_EDITOR
 	rebuildDebugMesh();
@@ -264,7 +337,6 @@ void AHexSphere::updateDebugText()
 	}
 	
 }
-
 #endif
 
 
