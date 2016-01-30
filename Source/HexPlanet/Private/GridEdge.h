@@ -2,38 +2,28 @@
 
 #pragma once
 #include "PrivateHexPlanetDeclarations.h"
-/**
- * 
- */
+
+class GridGenerator;
+
 class GridEdge
 {
 public:
-	GridEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint);
+	GridEdge(const int32& index, GridGenerator* myParent);
 	~GridEdge();
-
-	inline const GridTilePtrList& getTiles() const
-	{
-		return tiles;
-	}
-	inline const GridNodePtr& getStartPoint() const
-	{
-		return pStartPoint;
-	}
-	inline const GridNodePtr& getEndPoint() const
-	{
-		return pEndPoint;
-	}
-	inline const FVector& getPosition() const
-	{
-		return myPosition;
-	}
-	float getLength() const;
-	FString mapKey()const;
+	 
+	void setStartAndEndPoints(const int32& newStartPoint, const int32& newEndPoint);
+	GridTilePtrList getTiles() const;
+	GridNodePtr getStartPoint() const;
+	GridNodePtr getEndPoint() const;
+	const FVector& getPosition() const;
+	FVector getPosition(const float& radius) const;
+	float getLength(const float& radius) const;
+	const int32& getIndex() const;
 protected:
 	friend class GridGenerator;
-
-	FVector myPosition;
-	GridTilePtrList tiles;
-	GridNodePtr pStartPoint;
-	GridNodePtr pEndPoint;
+	GridGenerator* gridOwner;
+	const int32 myIndex;
+	int32 startPoint;
+	int32 endPoint;
+	int32 tiles[2];
 };

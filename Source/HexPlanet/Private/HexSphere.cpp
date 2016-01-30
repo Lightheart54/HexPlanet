@@ -18,22 +18,26 @@ AHexSphere::AHexSphere()
 	hexagonMeshComponent->AttachTo(gridRoot);
 	radius = 50;
 	numSubvisions = 0;
-	gridGenerator = new GridGenerator(radius, numSubvisions);
-	surfaceArea = gridGenerator->getSurfaceArea();
-	volume = gridGenerator->getVolume();
+	gridGenerator = new GridGenerator(numSubvisions);
+	surfaceArea = gridGenerator->getSurfaceArea(radius);
+	volume = gridGenerator->getVolume(radius);
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	numTiles = tiles.Num();
 	PentagonMeshInnerRadius = 20;
 	HexagonMeshInnerRadius = 20;
 	tileFillRatio = 0.95;
+	GridTiles.Empty();
 #ifdef WITH_EDITOR
 	debugMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugMeshRoot"));
+	subdivisionPreviewMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("SubdivisionPreviewGenerator"));
 	debugMesh->AttachTo(RootComponent);
+	subdivisionPreviewMesh->AttachTo(RootComponent);
 	renderNodes = false;
-	renderEdges = false;
+	renderEdges = true;
 	displayEdgeLengths = false;
 	displayTileMeshes = true;
 	displayCollisionTileMeshes = false;
+	previewNextSubdivision = false;
 #endif // WITH_EDITOR
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -44,13 +48,19 @@ AHexSphere::AHexSphere()
 void AHexSphere::BeginPlay()
 {
 	Super::BeginPlay();
+	numSubvisions = 0;
+	calculateMesh();
 }
 
 // Called every frame
 void AHexSphere::Tick( float DeltaTime )
 {
 	Super::Tick( DeltaTime );
-
+	if (numSubvisions < 6)
+	{
+		numSubvisions++;
+		calculateMesh();
+	}
 }
 
 void AHexSphere::Destroyed()
@@ -68,14 +78,12 @@ void AHexSphere::PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph)
 
 TArray<UGridTileComponent*> AHexSphere::GetGridTiles() const
 {
-	TArray<UGridTileComponent*> tilePtrs;
-	GridTiles.GenerateValueArray(tilePtrs);
-	return tilePtrs;
+	return GridTiles;
 }
 
-UGridTileComponent* AHexSphere::GetGridTile(const FString& tileKey) const
+UGridTileComponent* AHexSphere::GetGridTile(const int32& tileKey) const
 {
-	if (GridTiles.Contains(tileKey))
+	if (GridTiles.Num() < tileKey)
 	{
 		return GridTiles[tileKey];
 	}
@@ -116,23 +124,38 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 	{
 		for (auto& pointerPair : GridTiles)
 		{
-			pointerPair.Value->SetVisibility(displayCollisionTileMeshes);
+			pointerPair->SetVisibility(displayCollisionTileMeshes);
 		}
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderNodes))
-		 ||(PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderEdges)))
+		 ||(PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderEdges))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderTileCenters))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderEdgeCenters)))
 	{
 		rebuildDebugMesh();
 	}
-	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayEdgeLengths)))
+	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayEdgeLengths))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayNodeNames)))
 	{
 		updateDebugText();
 	}
+	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, previewNextSubdivision)))
+	{
+		genSubdivisionPreview();
+	}
+	
 	
 
 	// Call the base class version  
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void AHexSphere::OnConstruction(const FTransform& Transform)
+{
+	rebuildDebugMesh();
+	genSubdivisionPreview();
+}
+
 #endif  
 
 void AHexSphere::calculateMesh()
@@ -140,9 +163,9 @@ void AHexSphere::calculateMesh()
 	//clean up the old grid
 	pentagonMeshComponent->ClearInstances();
 	hexagonMeshComponent->ClearInstances();
-	gridGenerator->rebuildGrid(radius, numSubvisions);
-	surfaceArea = gridGenerator->getSurfaceArea();
-	volume = gridGenerator->getVolume();
+	gridGenerator->rebuildGrid(numSubvisions);
+	surfaceArea = gridGenerator->getSurfaceArea(radius);
+	volume = gridGenerator->getVolume(radius);
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	numTiles = tiles.Num();
 	rebuildInstances();
@@ -155,8 +178,29 @@ void AHexSphere::rebuildInstances()
 	pentagonMeshComponent->SetStaticMesh(PentagonMesh);
 	hexagonMeshComponent->SetStaticMesh(HexagonMesh);
 	GridTilePtrList tiles = gridGenerator->getTiles();
-	TMap<FString, UGridTileComponent*> oldTiles = GridTiles;
-	GridTiles.Empty(tiles.Num());
+	if (GridTiles.Num() < tiles.Num())
+	{
+		int32 tileKey = GridTiles.Num();
+		while (GridTiles.Num() < tiles.Num())
+		{
+			UGridTileComponent* newTile = NewObject<UGridTileComponent>(this);
+			newTile->AttachTo(gridRoot);
+			newTile->gridOwner = this;
+			newTile->tileKey = tileKey;
+			GridTiles.Add(newTile);
+			++tileKey;
+		}
+	}
+	else
+	{
+		for (int32 oldIndex = GridTiles.Num(); oldIndex < GridTiles.Num(); ++oldIndex)
+		{
+			GridTiles[oldIndex]->DetachFromParent();
+			GridTiles[oldIndex]->DestroyComponent();
+		}
+		GridTiles.SetNum(GridTiles.Num());
+	}
+
 	for (const GridTilePtr& tile : tiles)
 	{		
 		GridEdgePtrList tileEdges = tile->getEdges();
@@ -168,13 +212,11 @@ void AHexSphere::rebuildInstances()
 		{
 			continue;
 		}
-		FVector tileCenter = tile->getPosition();
+		FVector tileCenter = tile->getPosition(radius);
 		FVector zDir;
 		float localSphereRadius;
 		tileCenter.ToDirectionAndLength(zDir, localSphereRadius);
-		float vectorRatio = radius / gridGenerator->getRadius();
-		tileCenter *= vectorRatio;
-		FVector tileInnerRadiusVec = tileEdges[0]->getPosition() * vectorRatio;
+		FVector tileInnerRadiusVec = tileEdges[0]->getPosition(radius);
 		tileInnerRadiusVec -= tileInnerRadiusVec.ProjectOnTo(zDir);
 		float tileInnerRadius = FMath::Sqrt(FVector::DotProduct(tileInnerRadiusVec, tileInnerRadiusVec));
 		FVector yVec;
@@ -186,13 +228,13 @@ void AHexSphere::rebuildInstances()
 		else
 		{
 			GridTilePtr refNeighbor = gridNeighbors[0];
-			FVector refenceVec = refNeighbor->getPosition();
-			gridNeighbors.Sort([&refenceVec](const GridTile& neighbor1, const GridTile& neighbor2)->bool
+			FVector refenceVec = refNeighbor->getPosition(radius);
+			gridNeighbors.Sort([&](const GridTile& neighbor1, const GridTile& neighbor2)->bool
 			{
-				return FVector::DistSquared(refenceVec, neighbor1.getPosition()) > FVector::DistSquared(refenceVec, neighbor2.getPosition());
+				return FVector::DistSquared(refenceVec, neighbor1.getPosition(radius)) > FVector::DistSquared(refenceVec, neighbor2.getPosition(radius));
 			});
 			GridTilePtr oppositeNeighbor = gridNeighbors[0];
-			yVec = refenceVec - oppositeNeighbor->getPosition();
+			yVec = refenceVec - oppositeNeighbor->getPosition(radius);
 		}
 		yVec -= yVec.ProjectOnTo(zDir);
 		float yVecMag;
@@ -204,7 +246,7 @@ void AHexSphere::rebuildInstances()
 		xVec.ToDirectionAndLength(xDir, tangetRad);
 		
 		UStaticMesh* myMesh = nullptr;
-		uint32 instanceMeshNum = 0;
+		int32 instanceMeshNum = 0;
 		UInstancedStaticMeshComponent* tileMapMesher;
 		FVector scaleVector = FVector(tileInnerRadius* tileFillRatio, tileInnerRadius* tileFillRatio, tileInnerRadius);
 		if (tileEdges.Num() == 5)
@@ -221,48 +263,31 @@ void AHexSphere::rebuildInstances()
 		}
 
 		UGridTileComponent* thisTile;
-		FString tileKey = tile->mapKey();
-		if (oldTiles.Contains(tileKey))
-		{
-			thisTile = oldTiles[tileKey];
-			thisTile->gridNeighborKeys.Empty(gridNeighbors.Num());
-			oldTiles.Remove(tileKey);
-		}
-		else
-		{
-			thisTile = NewObject<UGridTileComponent>(this);
-			thisTile->AttachTo(gridRoot);
-			thisTile->gridOwner = this;
-			thisTile->tileKey = tileKey;
-		}
+		int32 tileKey = tile->getIndex();
+
+		thisTile = GridTiles[tileKey];
 		thisTile->SetVisibility(displayCollisionTileMeshes);
 		for (const GridTilePtr gridNeighborPtr : gridNeighbors)
 		{
-			thisTile->gridNeighborKeys.Add(gridNeighborPtr->mapKey());
+			thisTile->gridNeighborKeys.Add(gridNeighborPtr->getIndex());
 		}
 
 		FBox meshBB = myMesh->GetBoundingBox();
 		FTransform instanceTransform(xDir, yDir, zDir, tileCenter);
 		instanceTransform.SetScale3D(scaleVector);
-		uint32 instanceNum = tileMapMesher->AddInstance(instanceTransform);
+		int32 instanceNum = tileMapMesher->AddInstance(instanceTransform);
 		thisTile->mapMesh = tileMapMesher;
 		thisTile->instanceMeshNum = instanceNum;
 		instanceTransform.SetLocation(tileCenter+ 1.5*meshBB.Max.Z*zDir);
 		thisTile->SetRelativeTransform(instanceTransform);
 		thisTile->SetStaticMesh(myMesh);
-		GridTiles.Add(thisTile->tileKey,thisTile);
 	}
 
-	for (auto& pointerPair : oldTiles)
-	{
-		pointerPair.Value->DetachFromParent();
-		pointerPair.Value->DestroyComponent();
-	}
-	oldTiles.Empty();
 
 #ifdef WITH_EDITOR
 	rebuildDebugMesh();
 	updateDebugText();
+	genSubdivisionPreview();
 #endif // WITH_EDITOR
 }
 
@@ -275,31 +300,34 @@ void AHexSphere::buildDebugMesh()
 	{
 		for (const GridNodePtr& gridNode : gridNodes)
 		{
-			debugMesh->DrawPoint(centerPoint + (gridNode->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Blue, 8, 2);
+			debugMesh->DrawPoint(centerPoint + gridNode->getPosition(radius), FLinearColor::Blue, 8, 2);
 		}
 	}
 
-	GridEdgePtrList gridEdges = gridGenerator->getEdges();
-	for (const GridEdgePtr& gridEdge : gridEdges)
+	if (renderEdges|| renderEdgeCenters)
 	{
-		if (renderEdges)
+		GridEdgePtrList gridEdges = gridGenerator->getEdges();
+		for (const GridEdgePtr& gridEdge : gridEdges)
 		{
-			debugMesh->DrawLine(centerPoint+(gridEdge->getStartPoint()->getPosition())*radius / gridGenerator->getRadius(),
-						centerPoint + (gridEdge->getEndPoint()->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Green, 2, 0.5);
-		}
-		if (renderNodes)
-		{
-			debugMesh->DrawPoint(centerPoint + (gridEdge->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Red, 8, 2);
+			if (renderEdges)
+			{
+				debugMesh->DrawLine(centerPoint+gridEdge->getStartPoint()->getPosition(radius),
+							centerPoint + gridEdge->getEndPoint()->getPosition(radius), FLinearColor::Green, 2, 0.5);
+			}
+			if (renderEdgeCenters)
+			{
+				debugMesh->DrawPoint(centerPoint + gridEdge->getPosition(radius), FLinearColor::Red, 8, 2);
+			}
 		}
 	}
 
-	if (renderNodes)
+	if (renderTileCenters)
 	{
 		GridTilePtrList gridTiles = gridGenerator->getTiles();
-			for (const GridTilePtr& gridTile : gridTiles)
-			{
-				debugMesh->DrawPoint(centerPoint + (gridTile->getPosition())*radius / gridGenerator->getRadius(), FLinearColor::Yellow, 8, 2);
-			}
+		for (const GridTilePtr& gridTile : gridTiles)
+		{
+			debugMesh->DrawPoint(centerPoint + gridTile->getPosition(radius), FLinearColor::Yellow, 8, 2);
+		}
 	}
 }
 
@@ -307,7 +335,7 @@ void AHexSphere::rebuildDebugMesh()
 {
 	debugMesh->Flush();
 
-	if (renderNodes || renderEdges)
+	if (renderNodes || renderEdges || renderTileCenters || renderEdgeCenters)
 	{
 		buildDebugMesh();
 	}
@@ -325,18 +353,92 @@ void AHexSphere::updateDebugText()
 		GridEdgePtrList gridEdges = gridGenerator->getEdges();
 		for (const GridEdgePtr& gridEdge : gridEdges)
 		{
-			FText nodeText = FText::FromString(FString::SanitizeFloat((gridEdge->getLength())*radius / gridGenerator->getRadius()));
+			FString stringForText = FString::FromInt(gridEdge->getIndex()).Append(FString(": ")).Append(FString::SanitizeFloat(gridEdge->getLength(radius)));
+			FText nodeText = FText::FromString(stringForText);
 			UTextRenderComponent* nodePos = NewObject<UTextRenderComponent>(this);
 			debugTextArray.Add(nodePos);
 			nodePos->SetText(nodeText);
-			nodePos->SetRelativeLocation((gridEdge->getPosition())*radius / gridGenerator->getRadius());
+			nodePos->SetRelativeLocation(gridEdge->getPosition(radius));
 			nodePos->SetWorldSize(1);
 			nodePos->SetTextRenderColor(FColor::Black);
 			nodePos->AttachTo(RootComponent);
 		}
 	}
+	if (displayNodeNames)
+	{
+		GridNodePtrList gridNodes = gridGenerator->getNodes();
+		for (GridNodePtr gridNode : gridNodes)
+		{
+			FString stringForText = FString::FromInt(gridNode->getIndex()).Append(FString(": ")).Append(gridNode->getPosition().ToString());
+			FText nodeText = FText::FromString(stringForText);
+			UTextRenderComponent* nodePos = NewObject<UTextRenderComponent>(this);
+			debugTextArray.Add(nodePos);
+			nodePos->SetText(nodeText);
+			nodePos->SetRelativeLocation(gridNode->getPosition(radius));
+			nodePos->SetWorldSize(1);
+			nodePos->SetTextRenderColor(FColor::Black);
+			nodePos->AttachTo(RootComponent);
+		}
+
+	}
 	
 }
+
+void AHexSphere::genSubdivisionPreview()
+{
+	subdivisionPreviewMesh->Flush();
+	if (previewNextSubdivision)
+	{
+		FVector centerPoint = GetActorLocation();
+		GridTilePtr tile0 = gridGenerator->getTile(0);
+		previewTileSubdivision(tile0->getIndex(), centerPoint);
+		GridTilePtrList tile0Neighbors = tile0->getNeighbors();
+		for (GridTilePtr neighbor : tile0Neighbors)
+		{
+			previewTileSubdivision(neighbor->getIndex(), centerPoint);
+		}
+
+	}
+}
+
+void AHexSphere::previewTileSubdivision(uint32 tileIndex, FVector centerPoint)
+{
+	GridTilePtr tile0 = gridGenerator->getTile(tileIndex);
+	GridEdgePtrList tile0Edges = tile0->getEdges();
+	for (const GridEdgePtr& tile0Edge : tile0Edges)
+	{
+		FVector spPos = tile0Edge->getStartPoint()->getPosition();
+		FVector spPos3D = tile0Edge->getStartPoint()->getPosition(radius);
+		FVector epPos = tile0Edge->getEndPoint()->getPosition();
+		FVector epPos3D = tile0Edge->getEndPoint()->getPosition(radius);
+		FVector t1Pos = tile0Edge->getTiles()[0]->getPosition();
+		FVector t1Pos3D = tile0Edge->getTiles()[0]->getPosition(radius);
+		FVector t2Pos = tile0Edge->getTiles()[1]->getPosition();
+		FVector t2Pos3D = tile0Edge->getTiles()[1]->getPosition(radius);
+
+		subdivisionPreviewMesh->DrawLine(centerPoint + spPos3D, centerPoint + epPos3D, FLinearColor::Green, 2, 1);
+		FVector newSp = gridGenerator->findAveragePoint(spPos, epPos, t1Pos);
+		FVector newSp3D = newSp*radius;
+		FVector newEp = gridGenerator->findAveragePoint(spPos, epPos, t2Pos);
+		FVector newEp3D = newEp*radius;
+		subdivisionPreviewMesh->DrawLine(centerPoint + newSp3D, centerPoint + newEp3D, FLinearColor::Red, 2, 1);
+
+		FVector spT1 = gridGenerator->findAveragePoint(spPos, t1Pos);
+		FVector spT13D = spT1*radius;
+		subdivisionPreviewMesh->DrawLine(centerPoint + newSp3D, centerPoint + spT13D, FLinearColor::Yellow, 2, 1);
+		FVector epT1 = gridGenerator->findAveragePoint(epPos, t1Pos);
+		FVector epT13D = epT1*radius;
+		subdivisionPreviewMesh->DrawLine(centerPoint + newSp3D, centerPoint + epT13D, FLinearColor::Yellow, 2, 1);
+		FVector spT2 = gridGenerator->findAveragePoint(spPos, t2Pos);
+		FVector spT23D = spT2*radius;
+		subdivisionPreviewMesh->DrawLine(centerPoint + newEp3D, centerPoint + spT23D, FLinearColor::Yellow, 2, 1);
+		FVector epT2 = gridGenerator->findAveragePoint(epPos, t2Pos);
+		FVector epT23D = epT2*radius;
+		subdivisionPreviewMesh->DrawLine(centerPoint + newEp3D, centerPoint + epT23D, FLinearColor::Yellow, 2, 1);
+
+	}
+}
+
 #endif
 
 

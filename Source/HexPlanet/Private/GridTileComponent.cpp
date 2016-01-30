@@ -12,7 +12,7 @@ UGridTileComponent::UGridTileComponent()
 	// off to improve performance if you don't need them.
 	bWantsBeginPlay = true;
 	PrimaryComponentTick.bCanEverTick = true;
-	tileKey = "";
+	tileKey = -1;
 	instanceMeshNum = 0;
 	mapMesh = nullptr;
 	// ...

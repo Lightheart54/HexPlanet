@@ -4,10 +4,14 @@
 #include "GridNode.h"
 #include "GridEdge.h"
 #include "GridTile.h"
+#include "GridGenerator.h"
+#include <limits>
 
-GridNode::GridNode(const FVector& _position) : edges()
+GridNode::GridNode(const int32& index, GridGenerator* myParent) : gridOwner(myParent), myIndex(index)
 {
-	myPosition = _position;
+	myEdges[0] = std::numeric_limits<int32>::max();
+	myEdges[1] = std::numeric_limits<int32>::max();
+	myEdges[2] = std::numeric_limits<int32>::max();
 }
 
 GridNode::~GridNode()
@@ -15,8 +19,18 @@ GridNode::~GridNode()
 
 }
 
+GridEdgePtrList GridNode::getEdges() const
+{
+	GridEdgePtrList edges;
+	edges.Add(gridOwner->getEdge(myEdges[0]));
+	edges.Add(gridOwner->getEdge(myEdges[1]));
+	edges.Add(gridOwner->getEdge(myEdges[2]));
+	return edges;
+}
+
 GridTilePtrList GridNode::getTiles() const
 {
+	GridEdgePtrList edges = getEdges();
 	GridTilePtrList neighbors;
 	for (const GridEdgePtr& edge : edges)
 	{
@@ -31,6 +45,7 @@ GridTilePtrList GridNode::getTiles() const
 
 GridNodePtrList GridNode::getNodes() const
 {
+	GridEdgePtrList edges = getEdges();
 	GridNodePtrList connected;
 	for (const GridEdgePtr& edge : edges)
 	{
@@ -46,7 +61,17 @@ GridNodePtrList GridNode::getNodes() const
 	return connected;
 }
 
-FString GridNode::mapKey() const
+const int32& GridNode::getIndex()
 {
-	return createKeyForVector(myPosition);
+	return myIndex;
+}
+
+const FVector& GridNode::getPosition() const
+{
+	return gridOwner->getNodeLocation(myIndex);
+}
+
+FVector GridNode::getPosition(const float& radius) const
+{
+	return gridOwner->getNodeLocation(myIndex,radius);
 }

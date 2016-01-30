@@ -16,11 +16,12 @@ typedef TArray<GridTilePtr> GridTilePtrList;
 typedef TMap<FString, GridTilePtr> GridTileMap;
 
 template<typename _PtrType>
-void deleteOwnedItems(TMap<FString,_PtrType*>& myMap)
+void deleteOwnedItems(TArray<_PtrType*>& myArray)
 {
-	for (auto& pointerPair : myMap)
+	for (auto& pointer : myArray)
 	{
-		delete pointerPair.Value;
+		delete pointer;
+		pointer = nullptr;
 	}
-	myMap.Empty();
+	myArray.Empty();
 }

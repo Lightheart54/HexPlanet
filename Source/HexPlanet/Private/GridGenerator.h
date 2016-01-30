@@ -8,51 +8,60 @@
 /**
  * 
  */
+
+ //For UE4 Profiler ~ Stat
+//DECLARE_CYCLE_STAT(TEXT("GridGeneration"), STATGROUP_GridGen, STATCAT_Advanced);
+
 class GridGenerator
 {
 public:
-	GridGenerator(const float& _radius = 1.0, const uint8& _numSubdivisions = 0);
+	GridGenerator(const uint8& _numSubdivisions = 0);
 
 	~GridGenerator();
 
-	void rebuildGrid(const float& newRadius = 1.0, const uint8& newNumSubdivisions = 0);
+	void rebuildGrid(const uint8& newNumSubdivisions = 0);
+	const uint8& getNumSubdivisions() const;
 
-	GridTilePtr getTile(const FVector& vec) const;
-	GridEdgePtr getEdge(const FVector& vec) const;
-	GridNodePtr getNode(const FVector& vec) const;
+	
+	FVector getEdgeLocation(const int32& edgeIndex, const float& radius) const;
+	const FVector& getEdgeLocation(const int32& edgeIndex) const;
+	FVector getNodeLocation(const int32& nodeIndex, const float& radius) const;
+	const FVector& getNodeLocation(const int32& nodeIndex) const;
+	FVector getTileLocation(const int32& tileIndex, const float& radius) const;
+	const FVector& getTileLocation(const int32& tileIndex) const;
 
-	GridTilePtrList getTiles() const;
+	GridTilePtr getTile(const int32& tileIndex) const;
+	GridTilePtrList getTiles() const; 
+	GridEdgePtr getEdge(const int32& edgeIndex) const;
 	GridEdgePtrList getEdges() const;
+	GridNodePtr getNode(const int32& nodeIndex) const;
 	GridNodePtrList getNodes() const;
-	float getRadius() const;
 
-	float getVolume() const;
-	float getSurfaceArea() const;
+	float getVolume(const float& radius) const;
+	float getSurfaceArea(const float& radius) const;
+	FVector findAveragePoint(const FVector& vec1, const FVector& vec2) const;
+	FVector findAveragePoint(const FVector& vec1, const FVector& vec2, const FVector& vec3) const;
 
 private:
 	void buildNewGrid();
 	void createBaseGrid();
+	void subdivideEdge(const int32& baseEdge, TMap<int32, TArray<int32>>& nodeToNodesMapOut);
 
-	void subdivideTriangle(const GridEdgePtr& baseEdge, const FVector& TriangleCap, TMap<GridNodePtr, GridNodePtrList>& nodeToNodesMapOut);
-	//GridNodePtr createNode(const FVector& vec1, const FVector& vec2, const float& ratioAlongPath);
-
-	void subdivideGrid();
+	void subdivideGrid(bool skipTiles = false);
 	void cleanUpMemberWPtrLists() const;
 
 
-	GridNodePtr createNode(FVector pos);
-	GridEdgePtr createEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint);
-	GridEdgePtr createAndRegisterEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint);
-	GridTilePtr createTile(const GridEdgePtrList& edgeLoop);
-	void registerTileWithEdges(const GridTilePtr& tileptr);
-	GridTilePtr createTile(const TArray<FVector>& nodeLocs);
-	GridTilePtr createTile(const GridNodePtrList& loopNodes);
-	GridEdgePtrList createEdgeLoop(const TArray<FVector>& nodeLocs);
-	GridEdgePtrList createEdgeLoop(GridNodePtrList loopNodes);
-	float radius;
-	uint8 numSubdivisions;
+	int32 createNode(const FVector& pos);
+	int32 createEdge(const int32& startPoint, const int32& endPoint);
+	int32 createTile(const int32& baseNodeNum, TArray<int32> tileNodes);
 
-	GridTileMap tiles;
-	GridNodeMap nodes;
-	GridEdgeMap edges;
+	uint8 numSubdivisions;
+	int32 nextNodeNumber;
+	int32 nextTileNumber;
+	int32 nextEdgeNumber;
+	TArray<FVector> edgeLocations;
+	TArray<FVector> nodeLocations;
+	GridTilePtrList tiles;
+	GridNodePtrList nodes;
+	GridEdgePtrList edges;
 };

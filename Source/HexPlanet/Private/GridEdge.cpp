@@ -4,24 +4,84 @@
 #include "GridEdge.h"
 #include "GridNode.h"
 #include "GridTile.h"
+#include "GridGenerator.h"
+#include <limits>
 
 
-GridEdge::GridEdge(const GridNodePtr& startPoint, const GridNodePtr& endPoint)
-	: pStartPoint(startPoint), pEndPoint(endPoint)
+GridEdge::GridEdge(const int32& index, GridGenerator* myParent)
+	: myIndex(index), gridOwner(myParent)
 {
-	myPosition = (pStartPoint->getPosition() + pEndPoint->getPosition()) / 2;
+	tiles[0] = std::numeric_limits<int32>::max();
+	tiles[1] = std::numeric_limits<int32>::max();
+	startPoint = std::numeric_limits<int32>::max();
+	endPoint = std::numeric_limits<int32>::max();
 }
 
 GridEdge::~GridEdge()
 {
 }
 
-float GridEdge::getLength() const
+void GridEdge::setStartAndEndPoints(const int32& newStartPoint, const int32& newEndPoint)
 {
-	return FVector::Dist(pStartPoint->getPosition(), pEndPoint->getPosition());
+	tiles[0] = startPoint;
+	tiles[1] = endPoint;
+	startPoint = newStartPoint;
+	endPoint = newEndPoint;
+	GridNodePtr startNode = gridOwner->getNode(startPoint);
+	GridNodePtr endNode = gridOwner->getNode(endPoint);
+	bool doneStart = false;
+	bool doneEnd = false;
+	for (int32 index = 0; index < 3 ; ++index)
+	{
+		if (!doneStart && startNode->myEdges[index] == std::numeric_limits<int32>::max())
+		{
+			doneStart = true;
+			startNode->myEdges[index] = myIndex;
+		}
+		if (!doneEnd && endNode->myEdges[index] == std::numeric_limits<int32>::max())
+		{
+			doneEnd = true;
+			endNode->myEdges[index] = myIndex;
+		}
+	}
 }
 
-FString GridEdge::mapKey() const
+GridTilePtrList GridEdge::getTiles() const
 {
-	return createKeyForVector(myPosition);
+	GridTilePtrList neighbors;
+	neighbors.Add(gridOwner->getTile(tiles[0]));
+	neighbors.Add(gridOwner->getTile(tiles[1]));
+	return neighbors;
 }
+
+GridNodePtr GridEdge::getStartPoint() const
+{
+	return gridOwner->getNode(startPoint);
+}
+
+GridNodePtr GridEdge::getEndPoint() const
+{
+	return gridOwner->getNode(endPoint);
+}
+
+const FVector& GridEdge::getPosition() const
+{
+	return gridOwner->getEdgeLocation(myIndex);
+}
+
+FVector GridEdge::getPosition(const float& radius) const
+{
+	return gridOwner->getEdgeLocation(myIndex, radius);
+}
+
+float GridEdge::getLength(const float& radius) const
+{
+	return radius * FVector::Dist(gridOwner->getNodeLocation(startPoint),
+								gridOwner->getNodeLocation(endPoint));
+}
+
+const int32& GridEdge::getIndex() const
+{
+	return myIndex;
+}
+

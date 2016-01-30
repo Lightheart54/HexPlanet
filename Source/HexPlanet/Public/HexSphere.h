@@ -24,7 +24,7 @@ public:
 	float volume;
 
 	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
-	uint32 numTiles;
+	int32 numTiles;
 
 	UPROPERTY(EditAnywhere, Category = "Grid Properties",
 		meta = (ClampMin = "0.1", UIMin = "0.1"))
@@ -36,7 +36,7 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Grid Properties",
 		meta = (ClampMin = "0", UIMin = "0"))
-	uint32 numSubvisions;
+	int32 numSubvisions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
 	UStaticMesh* PentagonMesh; 
@@ -63,18 +63,28 @@ public:
 	TArray<UGridTileComponent*> GetGridTiles() const;
 
 	UFUNCTION(BlueprintPure, Category = "GridNavigation")
-	UGridTileComponent* GetGridTile(const FString& tileKey) const;
-
+	UGridTileComponent* GetGridTile(const int32& tileKey) const;
+	
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool renderEdges;
 	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool renderNodes;
 	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
+		bool renderTileCenters;
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
+		bool renderEdgeCenters;
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
+		bool displayNodeNames;
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool displayEdgeLengths;
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
+		bool previewNextSubdivision;
+
 	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay")
 		bool displayTileMeshes;
 	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay", meta = (ToolTip = "Warning This Can Have Significant Performance Implications"))
@@ -87,15 +97,20 @@ protected:
 	void rebuildInstances();
 	UInstancedStaticMeshComponent* hexagonMeshComponent;
 	UInstancedStaticMeshComponent* pentagonMeshComponent;
-	TMap<FString,UGridTileComponent*> GridTiles;
 	USceneComponent* gridRoot;
 	GridGenerator* gridGenerator;
+	TArray<UGridTileComponent*> GridTiles;
 
 #if WITH_EDITOR
 	ULineBatchComponent* debugMesh;
 	TArray<UTextRenderComponent*> debugTextArray;
+	ULineBatchComponent* subdivisionPreviewMesh;
 	void buildDebugMesh();
 	void rebuildDebugMesh();
 	void updateDebugText();
+	void genSubdivisionPreview();
+
+	void previewTileSubdivision(uint32 tileIndex, FVector centerPoint);
+
 #endif
 };

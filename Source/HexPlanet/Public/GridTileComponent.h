@@ -26,13 +26,13 @@ public:
 	TArray<UGridTileComponent*> getNeighbors() const;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GridNavigation")
-	TArray<FString> gridNeighborKeys;
+	TArray<int32> gridNeighborKeys;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GridNavigation")
-	FString tileKey;
+	int32 tileKey;
 
 	UInstancedStaticMeshComponent* mapMesh;
-	uint32 instanceMeshNum;
+	int32 instanceMeshNum;
 	AHexSphere* gridOwner;
 	
 };

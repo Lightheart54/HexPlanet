@@ -5,27 +5,25 @@
 /**
  * 
  */
+class GridGenerator;
+
 class GridTile
 {
 public:
-	GridTile(const GridEdgePtrList& tileEdges);
+	GridTile(const int32& index, const int32& numEdges, GridGenerator* myParent);
 	~GridTile();
 	GridTilePtrList getNeighbors() const;
-	inline const GridEdgePtrList& getEdges() const
-	{
-		return edges;
-	}
+	GridEdgePtrList getEdges() const;
 	GridNodePtrList getNodes() const;
-	inline const FVector& getPosition() const
-	{
-		return myPosition;
-	}
-	float getArea() const;
-	float getEnclosedVolume() const;
-	FString mapKey()const;
+	const FVector& getPosition() const;
+	FVector getPosition(const float& radius) const;
+	float getArea(const float& radius) const;
+	float getEnclosedVolume(const float& radius) const;
+	const int32& getIndex() const;
 private:
 	friend class GridGenerator;
-
-	FVector myPosition;
-	GridEdgePtrList edges;
+	GridGenerator* gridOwner;
+	const int32 myIndex;
+	int32 myEdges[6];
+	const int32 myNumEdges;
 };
