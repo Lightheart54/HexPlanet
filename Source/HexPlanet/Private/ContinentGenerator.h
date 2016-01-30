@@ -26,7 +26,7 @@ public:
 
 	void installGrid(AHexSphere* myOwner, GridGenerator* gridGenerator);
 
-	TArray<FGridTileSet> buildTechtonicPlates(const int32& numberOfPlates, const int32& plateSeed);
+	TArray<FGridTileSet> buildTectonicPlates(const int32& numberOfPlates, const int32& plateSeed);
 	void addTileToTileSet(FGridTileSet& tileSet, const uint32& seedTile, GridTilePtrList& availableTiles);
 protected:
 	AHexSphere* gridOwner;

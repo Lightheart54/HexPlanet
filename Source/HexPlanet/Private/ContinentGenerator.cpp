@@ -40,7 +40,7 @@ void UContinentGenerator::installGrid(AHexSphere* myOwner, GridGenerator* gridGe
 	gridGen = gridGenerator;
 }
 
-TArray<FGridTileSet> UContinentGenerator::buildTechtonicPlates(const int32& numberOfPlates, const int32& plateSeed)
+TArray<FGridTileSet> UContinentGenerator::buildTectonicPlates(const int32& numberOfPlates, const int32& plateSeed)
 {
 	FRandomStream randStream(plateSeed);
 	TArray<FGridTileSet> plateSets;

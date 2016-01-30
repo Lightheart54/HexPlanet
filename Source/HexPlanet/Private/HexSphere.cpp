@@ -79,7 +79,7 @@ void AHexSphere::Tick( float DeltaTime )
 	else if (numSubvisions == gridGenerator->getNumSubdivisions() && buildPlates)
 	{
 		buildPlates = false;
-		plateTileSets = continentGen->buildTechtonicPlates(numberOfPlateSeeds, tectonicPlateSeed);
+		plateTileSets = continentGen->buildTectonicPlates(numberOfPlateSeeds, tectonicPlateSeed);
 		platesRendered = false;
 	}
 	else if (platesRendered != renderPlates)
