@@ -44,6 +44,17 @@ public:
 		meta = (ClampMin = "0", UIMin = "0", ClampMax = "10", UIMax = "10"))
 		int32 secondaryPlateTypeDensity;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|MapDisplay")
+		bool overlayLandWaterMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|MapDisplay")
+		UInstancedStaticMeshComponent* hexagonLandInstanceMesher;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|MapDisplay")
+		UInstancedStaticMeshComponent* pentagonLandInstanceMesher;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|MapDisplay")
+		UInstancedStaticMeshComponent* hexagonOceanInstanceMesher;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|MapDisplay")
+		UInstancedStaticMeshComponent* pentagonOceanInstanceMesher;
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 	

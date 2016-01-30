@@ -12,6 +12,8 @@ AHexSphere::AHexSphere()
 	USceneComponent* SphereComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent = SphereComponent;
 	
+	framesPerRotation = 100;
+
 	//Grid Settings	
 	gridRoot = CreateDefaultSubobject<USceneComponent>(TEXT("GridRoot"));
 	gridRoot->AttachTo(RootComponent);
@@ -22,6 +24,7 @@ AHexSphere::AHexSphere()
 	volume = gridGenerator->getVolume(radius);
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	numTiles = tiles.Num();
+	inGame = false;
 
 	//tectonic plate settings
 	continentGen = CreateDefaultSubobject<UContinentGenerator>(TEXT("ContinentGenerator"));
@@ -34,7 +37,6 @@ AHexSphere::AHexSphere()
 	//land massing settings
 	calcLandMasses = true;
 	landmassesRendered = false;
-	renderLandmasses = false;
 	landMassLineDrawer = CreateDefaultSubobject<ULineBatchComponent>(TEXT("LandMassDrawer"));
 
 	//rendered mesh settings
@@ -70,6 +72,7 @@ void AHexSphere::BeginPlay()
 {
 	Super::BeginPlay();
 	instancesDirty = true;
+	inGame = true;
 }
 
 // Called every frame
@@ -100,9 +103,17 @@ void AHexSphere::Tick( float DeltaTime )
 		continentGen->calculateLandMasses();
 		landmassesRendered = false;
 	}
-	else if (landmassesRendered != renderLandmasses)
+	else if (landmassesRendered != continentGen->overlayLandWaterMap)
 	{
 		displayLandMasses();
+	}
+	else
+	{
+		//rotate the sphere
+		FRotator currentRotation = GetActorRotation();
+		currentRotation.Yaw += 2 * PI / framesPerRotation;
+		SetActorRotation(currentRotation);
+		tectonicPlateLineDrawer->SetRelativeRotation(currentRotation);
 	}
 }
 
@@ -272,74 +283,45 @@ void AHexSphere::rebuildInstances(bool buildCollisionComponents)
 	}
 
 	for (const GridTilePtr& tile : tiles)
-	{		
+	{
+		int32 tileKey = tile->getIndex();
 		GridEdgePtrList tileEdges = tile->getEdges();
 		if (tileEdges.Num() == 5 && PentagonMesh == nullptr)
 		{
 			continue;
 		}
-		else if (HexagonMesh == nullptr && tileEdges.Num()==6)
+		else if (HexagonMesh == nullptr && tileEdges.Num() == 6)
 		{
 			continue;
 		}
-		FVector tileCenter = tile->getPosition(radius);
-		FVector zDir;
-		float localSphereRadius;
-		tileCenter.ToDirectionAndLength(zDir, localSphereRadius);
-		FVector tileInnerRadiusVec = tileEdges[0]->getPosition(radius);
-		tileInnerRadiusVec -= tileInnerRadiusVec.ProjectOnTo(zDir);
-		float tileInnerRadius = FMath::Sqrt(FVector::DotProduct(tileInnerRadiusVec, tileInnerRadiusVec));
-		FVector yVec;
-		GridTilePtrList gridNeighbors = tile->getNeighbors();
-		if (tileEdges.Num() == 5)
-		{
-			yVec = tileInnerRadiusVec;
-		}
-		else
-		{
-			GridTilePtr refNeighbor = gridNeighbors[0];
-			FVector refenceVec = refNeighbor->getPosition(radius);
-			gridNeighbors.Sort([&](const GridTile& neighbor1, const GridTile& neighbor2)->bool
-			{
-				return FVector::DistSquared(refenceVec, neighbor1.getPosition(radius)) > FVector::DistSquared(refenceVec, neighbor2.getPosition(radius));
-			});
-			GridTilePtr oppositeNeighbor = gridNeighbors[0];
-			yVec = refenceVec - oppositeNeighbor->getPosition(radius);
-		}
-		yVec -= yVec.ProjectOnTo(zDir);
-		float yVecMag;
-		FVector yDir;
-		yVec.ToDirectionAndLength(yDir, yVecMag);
-		FVector xVec = FVector::CrossProduct(yDir, zDir);
-		FVector xDir;
-		float tangetRad;
-		xVec.ToDirectionAndLength(xDir, tangetRad);
-		
+
+		float baseInnerRadius;
 		UStaticMesh* myMesh = nullptr;
 		int32 instanceMeshNum = 0;
 		UInstancedStaticMeshComponent* tileMapMesher;
-		FVector scaleVector = FVector(tileInnerRadius* tileFillRatio, tileInnerRadius* tileFillRatio, tileInnerRadius);
 		if (tileEdges.Num() == 5)
 		{
-			scaleVector /= PentagonMeshInnerRadius;
+			baseInnerRadius = PentagonMeshInnerRadius;
 			tileMapMesher = pentagonMeshComponent;
 			myMesh = PentagonMesh;
 		}
 		else
 		{
-			scaleVector /= HexagonMeshInnerRadius;
+			baseInnerRadius = HexagonMeshInnerRadius;
 			tileMapMesher = hexagonMeshComponent;
 			myMesh = HexagonMesh;
 		}
-		FTransform instanceTransform(xDir, yDir, zDir, tileCenter);
-		instanceTransform.SetScale3D(scaleVector);
-		int32 instanceNum = tileMapMesher->AddInstance(instanceTransform);
+		FTransform instanceTransform = getTileTransform(tileKey, baseInnerRadius);
+		if (displayTileMeshes && !inGame)
+		{
+			tileMapMesher->AddInstance(instanceTransform);
+		}
 
-		int32 tileKey = tile->getIndex();
 		if (buildCollisionComponents)
 		{
 			UGridTileComponent* thisTile;
 			thisTile = GridTiles[tileKey];
+			GridTilePtrList gridNeighbors = tile->getNeighbors();
 			thisTile->SetVisibility(buildCollisionComponents);
 			for (const GridTilePtr gridNeighborPtr : gridNeighbors)
 			{
@@ -347,14 +329,62 @@ void AHexSphere::rebuildInstances(bool buildCollisionComponents)
 			}
 			FBox meshBB = myMesh->GetBoundingBox();
 			thisTile->mapMesh = tileMapMesher;
-			thisTile->instanceMeshNum = instanceNum;
-			instanceTransform.SetLocation(tileCenter + 1.5*meshBB.Max.Z*zDir);
+			thisTile->instanceMeshNum = tileKey;
+			FVector tileCenter = instanceTransform.GetLocation();
+			instanceTransform.SetLocation(1.1*tileCenter);
 			thisTile->SetRelativeTransform(instanceTransform);
 			thisTile->SetStaticMesh(myMesh);
+			thisTile->SetVisibility(displayCollisionTileMeshes);
 		}
 	}
 }
 
+
+FTransform AHexSphere::getTileTransform(const int32& tileKey, const float& baseTileInnerRadius)
+{
+	GridTilePtr tile = gridGenerator->getTile(tileKey);
+	GridEdgePtrList tileEdges = tile->getEdges();
+	FVector tileCenter = tile->getPosition(radius);
+	FVector zDir;
+	float localSphereRadius;
+	tileCenter.ToDirectionAndLength(zDir, localSphereRadius);
+	FVector tileInnerRadiusVec = tileEdges[0]->getPosition(radius);
+	tileInnerRadiusVec -= tileInnerRadiusVec.ProjectOnTo(zDir);
+	float tileInnerRadius = FMath::Sqrt(FVector::DotProduct(tileInnerRadiusVec, tileInnerRadiusVec));
+	FVector yVec;
+	GridTilePtrList gridNeighbors = tile->getNeighbors();
+	if (tileEdges.Num() == 5)
+	{
+		yVec = tileInnerRadiusVec;
+	}
+	else
+	{
+		GridTilePtr refNeighbor = gridNeighbors[0];
+		FVector refenceVec = refNeighbor->getPosition(radius);
+		gridNeighbors.Sort([&](const GridTile& neighbor1, const GridTile& neighbor2)->bool
+		{
+			return FVector::DistSquared(refenceVec, neighbor1.getPosition(radius)) > FVector::DistSquared(refenceVec, neighbor2.getPosition(radius));
+		});
+		GridTilePtr oppositeNeighbor = gridNeighbors[0];
+		yVec = refenceVec - oppositeNeighbor->getPosition(radius);
+	}
+	yVec -= yVec.ProjectOnTo(zDir);
+	float yVecMag;
+	FVector yDir;
+	yVec.ToDirectionAndLength(yDir, yVecMag);
+	FVector xVec = FVector::CrossProduct(yDir, zDir);
+	FVector xDir;
+	float tangetRad;
+	xVec.ToDirectionAndLength(xDir, tangetRad);
+	FTransform instanceTransform(xDir, yDir, zDir, tileCenter);
+
+	FVector scaleVector = FVector(tileInnerRadius* tileFillRatio / baseTileInnerRadius,
+		tileInnerRadius* tileFillRatio / baseTileInnerRadius,
+		tileInnerRadius / baseTileInnerRadius);
+
+	instanceTransform.SetScale3D(scaleVector);
+	return instanceTransform;
+}
 
 void AHexSphere::displayTectonicPlates()
 {
@@ -378,21 +408,51 @@ void AHexSphere::displayTectonicPlates()
 void AHexSphere::displayLandMasses()
 {
 	landmassesRendered = renderLandmasses;
-	landMassLineDrawer->Flush();
+	continentGen->hexagonLandInstanceMesher->ClearInstances();
+	continentGen->pentagonLandInstanceMesher->ClearInstances();
+	continentGen->hexagonOceanInstanceMesher->ClearInstances();
+	continentGen->pentagonOceanInstanceMesher->ClearInstances();
 	if (renderLandmasses)
 	{
-		FVector centerPoint = GetActorLocation();
 		FGridTileSet landTileSet = continentGen->getLandSet();
-		TArray<int32> landBorder = continentGen->getSetBorderTiles(landTileSet);
-		for (const uint32& tileIndex : landBorder)
+		for (const int32& landTile : landTileSet.containedTiles)
 		{
-			landMassLineDrawer->DrawPoint(centerPoint + gridGenerator->getTileLocation(tileIndex,radius*1.1), FLinearColor::Green, 2, 0.5);
+			GridTilePtr tilePtr = gridGenerator->getTile(landTile);
+			GridEdgePtrList tileEdges = tilePtr->getEdges();
+			UInstancedStaticMeshComponent* tileMesher;
+			float baseInnerRadius;
+			if (tileEdges.Num() == 5)
+			{
+				baseInnerRadius = PentagonMeshInnerRadius;
+				tileMesher = continentGen->pentagonLandInstanceMesher;
+			}
+			else
+			{
+				baseInnerRadius = HexagonMeshInnerRadius;
+				tileMesher = continentGen->hexagonLandInstanceMesher;
+			}
+			FTransform instanceTransform = getTileTransform(landTile, baseInnerRadius);
+			tileMesher->AddInstance(instanceTransform);
 		}
 		FGridTileSet oceanTileSet = continentGen->getOceanSet();
-		TArray<int32> oceanBorder = continentGen->getSetBorderTiles(oceanTileSet);
-		for (const uint32& tileIndex : oceanBorder)
+		for (const int32& oceanTile : oceanTileSet.containedTiles)
 		{
-			landMassLineDrawer->DrawPoint(centerPoint + gridGenerator->getTileLocation(tileIndex, radius*1.1), FLinearColor::Blue, 2, 0.5);
+			GridTilePtr tilePtr = gridGenerator->getTile(oceanTile);
+			GridEdgePtrList tileEdges = tilePtr->getEdges();
+			UInstancedStaticMeshComponent* tileMesher;
+			float baseInnerRadius;
+			if (tileEdges.Num() == 5)
+			{
+				baseInnerRadius = PentagonMeshInnerRadius;
+				tileMesher = continentGen->pentagonOceanInstanceMesher;
+			}
+			else
+			{
+				baseInnerRadius = HexagonMeshInnerRadius;
+				tileMesher = continentGen->hexagonOceanInstanceMesher;
+			}
+			FTransform instanceTransform = getTileTransform(oceanTile, baseInnerRadius);
+			tileMesher->AddInstance(instanceTransform);
 		}
 	}
 }

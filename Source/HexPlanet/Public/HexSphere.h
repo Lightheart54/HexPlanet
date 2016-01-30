@@ -27,32 +27,29 @@ public:
 	// Sets default values for this actor's properties
 	AHexSphere();
 
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	int32 framesPerRotation;
+
 	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
 	float surfaceArea;
-
 	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
 	float volume;
-
 	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
 	int32 numTiles;
-
 	UPROPERTY(EditAnywhere, Category = "Grid Properties",
 		meta = (ClampMin = "0.1", UIMin = "0.1"))
 	float radius;
-
 	UPROPERTY(EditAnywhere, Category = "Grid Properties",
 		meta = (ClampMin = "0.1", UIMin = "0.1", ClampMax = "1.1", UIMax = "1.1"))
 	float tileFillRatio;
-
 	UPROPERTY(EditAnywhere, Category = "Grid Properties",
 		meta = (ClampMin = "0", UIMin = "0"))
 	int32 numSubvisions;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
 	UStaticMesh* PentagonMesh; 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
 	float PentagonMeshInnerRadius;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
 	UStaticMesh* HexagonMesh;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
@@ -83,7 +80,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "GridNavigation")
 	UGridTileComponent* GetGridTile(const int32& tileKey) const;
 	
-
+	UFUNCTION(BlueprintPure, Category = "TilePosition")
+	FTransform getTileTransform(const int32& tileKey, const float& baseTileInnerRadius);
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
@@ -104,12 +102,11 @@ public:
 		bool displayEdgeLengths;
 	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool previewNextSubdivision;
-
-	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay")
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		int8 numPreviewSubdivions;
-	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay")
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay")
 		bool displayTileMeshes;
-	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay", meta = (ToolTip = "Warning This Can Have Significant Performance Implications"))
+	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay", meta = (ToolTip = "Warning This Can Have Significant In Editor Performance Implications"))
 		bool displayCollisionTileMeshes;
 #endif
 
@@ -117,6 +114,8 @@ public:
 protected:
 	void calculateMesh(const int8& localNumSubdivisions);
 	void rebuildInstances(bool buildCollisionComponents);
+
+
 	UInstancedStaticMeshComponent* hexagonMeshComponent;
 	UInstancedStaticMeshComponent* pentagonMeshComponent;
 	USceneComponent* gridRoot;
@@ -124,6 +123,7 @@ protected:
 	TArray<UGridTileComponent*> GridTiles;
 
 	ULineBatchComponent* tectonicPlateLineDrawer;
+	bool inGame;
 	bool buildPlates;
 	bool platesRendered;
 	void displayTectonicPlates();

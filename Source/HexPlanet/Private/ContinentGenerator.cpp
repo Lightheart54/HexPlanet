@@ -27,6 +27,11 @@ UContinentGenerator::UContinentGenerator()
 	primaryPlateTypeDensity = 3;
 	minSecondaryPlateTypeSeeds = 4;
 	secondaryPlateTypeDensity = 0;
+	hexagonLandInstanceMesher = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("HexagonLandMesher"));
+	hexagonOceanInstanceMesher = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("HexagonOceanMesher"));
+	pentagonLandInstanceMesher = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("PentagonLandMesher"));
+	pentagonOceanInstanceMesher = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("PentagonOceanMesher"));
+	overlayLandWaterMap = false;
 }
 
 
@@ -52,6 +57,10 @@ void UContinentGenerator::installGrid(AHexSphere* myOwner, GridGenerator* gridGe
 {
 	gridOwner = myOwner;
 	gridGen = gridGenerator;
+	hexagonLandInstanceMesher->AttachTo(myOwner->GetRootComponent());
+	pentagonLandInstanceMesher->AttachTo(myOwner->GetRootComponent());
+	hexagonOceanInstanceMesher->AttachTo(myOwner->GetRootComponent());
+	pentagonOceanInstanceMesher->AttachTo(myOwner->GetRootComponent());
 }
 
 void UContinentGenerator::buildTectonicPlates()
