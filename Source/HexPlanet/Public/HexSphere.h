@@ -7,6 +7,16 @@
 
 class GridGenerator;
 class UGridTileComponent;
+class UContinentGenerator;
+
+USTRUCT()
+struct FGridTileSet
+{
+	GENERATED_BODY()
+
+	TArray<int32> containedTiles;
+	TArray<int32> boarderEdges;
+};
 
 UCLASS(ClassGroup = "HexGrid", meta = (BlueprintSpawnableComponent))
 class HEXPLANET_API AHexSphere : public AActor
@@ -48,6 +58,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
 	float HexagonMeshInnerRadius;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration|TectonicPlateSeed")
+	int32 tectonicPlateSeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration|TectonicPlateSeed")
+	int32 numberOfPlateSeeds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration|ShowTectonicPlates")
+	bool renderPlates;
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -57,7 +75,9 @@ public:
 	
 	virtual void Destroyed() override;
 
-	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
+	virtual void PostLoad() override;
+
+	virtual void PostInitProperties() override;
 
 	UFUNCTION(BlueprintPure, Category = "GridNavigation")
 	TArray<UGridTileComponent*> GetGridTiles() const;
@@ -86,6 +106,8 @@ public:
 		bool previewNextSubdivision;
 
 	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay")
+		int8 numPreviewSubdivions;
+	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay")
 		bool displayTileMeshes;
 	UPROPERTY(EditAnywhere, Category = "Debug|MapDisplay", meta = (ToolTip = "Warning This Can Have Significant Performance Implications"))
 		bool displayCollisionTileMeshes;
@@ -93,13 +115,19 @@ public:
 
 
 protected:
-	void calculateMesh();
-	void rebuildInstances();
+	void calculateMesh(const int8& localNumSubdivisions);
+	void rebuildInstances(bool buildCollisionComponents);
 	UInstancedStaticMeshComponent* hexagonMeshComponent;
 	UInstancedStaticMeshComponent* pentagonMeshComponent;
 	USceneComponent* gridRoot;
 	GridGenerator* gridGenerator;
 	TArray<UGridTileComponent*> GridTiles;
+	UContinentGenerator* continentGen;
+	ULineBatchComponent* continentLineDrawer;
+	TArray<FGridTileSet> plateTileSets;
+	bool platesRendered;
+	bool buildPlates;
+	void displayTectonicPlates();
 
 #if WITH_EDITOR
 	TArray<USceneComponent*> GridTileBuckets;
@@ -112,6 +140,6 @@ protected:
 	void genSubdivisionPreview();
 
 	void previewTileSubdivision(uint32 tileIndex, FVector centerPoint);
-
+	bool instancesDirty;
 #endif
 };
