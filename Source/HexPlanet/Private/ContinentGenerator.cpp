@@ -17,6 +17,8 @@ UContinentGenerator::UContinentGenerator()
 	//tectonic plate settings
 	tectonicPlateSeed = FMath::Rand();
 	numberOfPlateSeeds = 12;
+	numberOfSubPlateSeeds = 2;
+	addSubPlatesAfterIteration = 2;
 
 	//land massing settings
 	landMassingSeed = FMath::Rand();
@@ -57,16 +59,28 @@ void UContinentGenerator::buildTectonicPlates()
 	FRandomStream randStream(tectonicPlateSeed);
 	plateTileSets.Empty();
 	plateTileSets.SetNumZeroed(numberOfPlateSeeds);
-	GridTilePtrList gridTiles = gridGen->getTiles();	
+	GridTilePtrList gridTiles = gridGen->getTiles();
 	for (FGridTileSet& tileSet : plateTileSets)
 	{
 		int32 seedTile;
 		do 
 		{
-			seedTile = randStream.RandRange(0, gridTiles.Num() - 1);
+			seedTile = randStream.RandRange(0, gridOwner->numTiles - 1);
 		} while (!addTileToTileSet(tileSet, seedTile, gridTiles));
 	}
 
+	createVoronoiDiagramFromSeedSets(gridTiles, plateTileSets, addSubPlatesAfterIteration);
+
+	for (int it = 0; it < numberOfSubPlateSeeds;++it)
+	{
+		FGridTileSet tileSet;
+		int32 seedTile;
+		do
+		{
+			seedTile = randStream.RandRange(0, gridOwner->numTiles - 1);
+		} while (!addTileToTileSet(tileSet, seedTile, gridTiles));
+		plateTileSets.Add(tileSet);
+	}
 	createVoronoiDiagramFromSeedSets(gridTiles, plateTileSets);
 
 	// rebuild the plates from a random set of seed tiles inside of the plate
@@ -161,9 +175,11 @@ FGridTileSet UContinentGenerator::getLandSet() const
 	return landTileSet;
 }
 
-void UContinentGenerator::createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets)
+void UContinentGenerator::createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets,
+	const uint32& maxNumIterations /*= -1*/)
 {
 	//produce our voronoi diagram using Manhattan distances
+	int32 currentIt = 0;
 	while (gridTiles.Num() != 0)
 	{
 		for (FGridTileSet& tileSet : seedSets)
@@ -176,6 +192,11 @@ void UContinentGenerator::createVoronoiDiagramFromSeedSets(GridTilePtrList &grid
 				addTileToTileSet(tileSet, edgeTiles[1]->getIndex(), gridTiles);
 			}
 		}
+		if (maxNumIterations == currentIt)
+		{
+			break;
+		}
+		currentIt++;
 	}
 }
 

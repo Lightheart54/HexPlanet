@@ -22,6 +22,10 @@ public:
 		int32 tectonicPlateSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
 		int32 numberOfPlateSeeds;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
+		int32 numberOfSubPlateSeeds;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
+		int32 addSubPlatesAfterIteration;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing")
 		int32 landMassingSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing",
@@ -54,7 +58,7 @@ public:
 	FGridTileSet getOceanSet() const;
 	FGridTileSet getLandSet() const;
 
-	void createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets);
+	void createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets, const uint32& maxNumIterations = -1);
 
 	TArray<FGridTileSet> subdivideSetIntoSubgroups(const FGridTileSet& tileSet, const TArray<int32> subgroupSeedCount,
 		const int32& groupSeed);
