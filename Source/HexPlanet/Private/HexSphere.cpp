@@ -180,14 +180,31 @@ void AHexSphere::rebuildInstances()
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	if (GridTiles.Num() < tiles.Num())
 	{
-		int32 tileKey = GridTiles.Num();
+#if WITH_EDITOR
+		
+#endif
 		while (GridTiles.Num() < tiles.Num())
 		{
 			UGridTileComponent* newTile = NewObject<UGridTileComponent>(this);
+			int32 tileKey = GridTiles.Add(newTile);
+#if WITH_EDITOR
+			USceneComponent* tileBucket = nullptr;
+			int32 bucketKey = tileKey / 250;
+			if (bucketKey >= GridTileBuckets.Num())
+			{
+				tileBucket = NewObject<USceneComponent>(this);
+				bucketKey = GridTileBuckets.Add(tileBucket);
+				tileBucket->AttachTo(gridRoot);
+				tileBucket->RegisterComponent();
+			}
+			tileBucket = GridTileBuckets[bucketKey];
+			newTile->AttachTo(tileBucket);
+#else
 			newTile->AttachTo(gridRoot);
+#endif
+			newTile->RegisterComponent();
 			newTile->gridOwner = this;
 			newTile->tileKey = tileKey;
-			GridTiles.Add(newTile);
 			++tileKey;
 		}
 	}
@@ -356,6 +373,7 @@ void AHexSphere::updateDebugText()
 			FString stringForText = FString::FromInt(gridEdge->getIndex()).Append(FString(": ")).Append(FString::SanitizeFloat(gridEdge->getLength(radius)));
 			FText nodeText = FText::FromString(stringForText);
 			UTextRenderComponent* nodePos = NewObject<UTextRenderComponent>(this);
+			nodePos->RegisterComponent();
 			debugTextArray.Add(nodePos);
 			nodePos->SetText(nodeText);
 			nodePos->SetRelativeLocation(gridEdge->getPosition(radius));
@@ -372,6 +390,7 @@ void AHexSphere::updateDebugText()
 			FString stringForText = FString::FromInt(gridNode->getIndex()).Append(FString(": ")).Append(gridNode->getPosition().ToString());
 			FText nodeText = FText::FromString(stringForText);
 			UTextRenderComponent* nodePos = NewObject<UTextRenderComponent>(this);
+			nodePos->RegisterComponent();
 			debugTextArray.Add(nodePos);
 			nodePos->SetText(nodeText);
 			nodePos->SetRelativeLocation(gridNode->getPosition(radius));

@@ -102,6 +102,7 @@ protected:
 	TArray<UGridTileComponent*> GridTiles;
 
 #if WITH_EDITOR
+	TArray<USceneComponent*> GridTileBuckets;
 	ULineBatchComponent* debugMesh;
 	TArray<UTextRenderComponent*> debugTextArray;
 	ULineBatchComponent* subdivisionPreviewMesh;
