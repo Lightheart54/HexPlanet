@@ -31,7 +31,7 @@ public:
 	const FVector& getTileLocation(const int32& tileIndex) const;
 
 	GridTilePtr getTile(const int32& tileIndex) const;
-	GridTilePtrList getTiles() const; 
+	GridTilePtrList getTiles() const;
 	GridEdgePtr getEdge(const int32& edgeIndex) const;
 	GridEdgePtrList getEdges() const;
 	GridNodePtr getNode(const int32& nodeIndex) const;

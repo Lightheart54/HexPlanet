@@ -25,7 +25,7 @@ public:
 	virtual void TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction ) override;
 
 	void installGrid(AHexSphere* myOwner, GridGenerator* gridGenerator);
-
+	
 	TArray<FGridTileSet> buildTectonicPlates(const int32& numberOfPlates, const int32& plateSeed);
 	void addTileToTileSet(FGridTileSet& tileSet, const uint32& seedTile, GridTilePtrList& availableTiles);
 protected:

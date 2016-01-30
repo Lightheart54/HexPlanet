@@ -48,8 +48,42 @@ TArray<FGridTileSet> UContinentGenerator::buildTectonicPlates(const int32& numbe
 	GridTilePtrList gridTiles = gridGen->getTiles();	
 	for (FGridTileSet& tileSet : plateSets)
 	{
-		int32 seedTile = randStream.RandRange(0, gridTiles.Num());
+		int32 seedTile = randStream.RandRange(0, gridTiles.Num()-1);
 		addTileToTileSet(tileSet, seedTile, gridTiles);
+	}
+
+	//produce our voronoi diagram using Manhattan distances
+	while (gridTiles.Num() != 0)
+	{
+		for (FGridTileSet& tileSet : plateSets)
+		{
+			TArray<int32> startBoarderEdges = tileSet.boarderEdges;
+			for (const uint32& edgeNum : startBoarderEdges)
+			{
+				GridTilePtrList edgeTiles = gridGen->getEdge(edgeNum)->getTiles();
+				addTileToTileSet(tileSet, edgeTiles[0]->getIndex(), gridTiles);
+				addTileToTileSet(tileSet, edgeTiles[1]->getIndex(), gridTiles);
+			}
+		}
+	}
+
+	// rebuild the plates from a random set of seed tiles inside of the plate
+	gridTiles = gridGen->getTiles();
+	for (FGridTileSet& tileSet : plateSets)
+	{
+		int32 numSubSeeds = tileSet.containedTiles.Num() / 30 + 1;
+		TArray<int32> subSeedNums;
+		for (int32 subseedNum = 0; subseedNum < numSubSeeds; ++subseedNum)
+		{
+			int32 newSubSeed = randStream.RandRange(0, tileSet.containedTiles.Num()-1);
+			subSeedNums.Add(tileSet.containedTiles[newSubSeed]);
+		}
+		tileSet.boarderEdges.Empty();
+		tileSet.containedTiles.Empty();
+		for (const int32& subSeed:subSeedNums)
+		{
+			addTileToTileSet(tileSet, subSeed, gridTiles);
+		}
 	}
 
 	//produce our voronoi diagram using Manhattan distances
