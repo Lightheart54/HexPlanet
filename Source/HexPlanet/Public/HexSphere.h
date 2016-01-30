@@ -58,14 +58,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMeshes)
 	float HexagonMeshInnerRadius;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration|TectonicPlateSeed")
-	int32 tectonicPlateSeed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration|TectonicPlateSeed")
-	int32 numberOfPlateSeeds;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration|ShowTectonicPlates")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration")
 	bool renderPlates;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration")
+	bool renderLandmasses;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldGeneration")
+	UContinentGenerator* continentGen;
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -85,6 +83,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "GridNavigation")
 	UGridTileComponent* GetGridTile(const int32& tileKey) const;
 	
+
+
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 
@@ -122,12 +122,15 @@ protected:
 	USceneComponent* gridRoot;
 	GridGenerator* gridGenerator;
 	TArray<UGridTileComponent*> GridTiles;
-	UContinentGenerator* continentGen;
-	ULineBatchComponent* continentLineDrawer;
-	TArray<FGridTileSet> plateTileSets;
-	bool platesRendered;
+
+	ULineBatchComponent* tectonicPlateLineDrawer;
 	bool buildPlates;
+	bool platesRendered;
 	void displayTectonicPlates();
+	bool calcLandMasses;
+	bool landmassesRendered;
+	ULineBatchComponent* landMassLineDrawer;
+	void displayLandMasses();
 
 #if WITH_EDITOR
 	TArray<USceneComponent*> GridTileBuckets;

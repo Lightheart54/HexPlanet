@@ -10,14 +10,11 @@
 AHexSphere::AHexSphere() 
 {
 	USceneComponent* SphereComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-	RootComponent = SphereComponent;	
+	RootComponent = SphereComponent;
+	
+	//Grid Settings	
 	gridRoot = CreateDefaultSubobject<USceneComponent>(TEXT("GridRoot"));
 	gridRoot->AttachTo(RootComponent);
-	pentagonMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("PentagonStaticMesh"));
-	pentagonMeshComponent->AttachTo(RootComponent);
-	hexagonMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("HexagonStaticMesh"));
-	hexagonMeshComponent->AttachTo(RootComponent);
-	continentGen = nullptr;
 	radius = 50;
 	numSubvisions = 0;
 	gridGenerator = new GridGenerator(numSubvisions);
@@ -25,17 +22,31 @@ AHexSphere::AHexSphere()
 	volume = gridGenerator->getVolume(radius);
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	numTiles = tiles.Num();
+
+	//tectonic plate settings
+	continentGen = CreateDefaultSubobject<UContinentGenerator>(TEXT("ContinentGenerator"));
+	continentGen->installGrid(this, gridGenerator);
+	renderPlates = false;
+	platesRendered = false;
+	buildPlates = true;
+	tectonicPlateLineDrawer = CreateDefaultSubobject<ULineBatchComponent>(TEXT("TectonicPlateDrawer"));
+
+	//land massing settings
+	calcLandMasses = true;
+	landmassesRendered = false;
+	renderLandmasses = false;
+	landMassLineDrawer = CreateDefaultSubobject<ULineBatchComponent>(TEXT("LandMassDrawer"));
+
+	//rendered mesh settings
+	pentagonMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("PentagonStaticMesh"));
+	pentagonMeshComponent->AttachTo(RootComponent);
+	hexagonMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("HexagonStaticMesh"));
+	hexagonMeshComponent->AttachTo(RootComponent);
 	PentagonMeshInnerRadius = 20;
 	HexagonMeshInnerRadius = 20;
 	tileFillRatio = 0.95;
 	GridTiles.Empty();
 	instancesDirty = true;
-	renderPlates = false;
-	platesRendered = false;
-	buildPlates = true;
-	tectonicPlateSeed = 1;
-	numberOfPlateSeeds = 12;
-	continentLineDrawer = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugContinentDrawer"));
 
 #ifdef WITH_EDITOR
 	debugMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugMeshRoot"));
@@ -59,9 +70,6 @@ void AHexSphere::BeginPlay()
 {
 	Super::BeginPlay();
 	instancesDirty = true;
-	continentGen = NewObject<UContinentGenerator>(this);
-	continentGen->RegisterComponent();
-	continentGen->installGrid(this, gridGenerator);
 }
 
 // Called every frame
@@ -76,15 +84,25 @@ void AHexSphere::Tick( float DeltaTime )
 	{
 		rebuildInstances(true);
 	}
-	else if (numSubvisions == gridGenerator->getNumSubdivisions() && buildPlates)
+	else if (buildPlates)
 	{
 		buildPlates = false;
-		plateTileSets = continentGen->buildTectonicPlates(numberOfPlateSeeds, tectonicPlateSeed);
+		continentGen->buildTectonicPlates();
 		platesRendered = false;
 	}
 	else if (platesRendered != renderPlates)
 	{
 		displayTectonicPlates();
+	}
+	else if (calcLandMasses)
+	{
+		calcLandMasses = false;
+		continentGen->calculateLandMasses();
+		landmassesRendered = false;
+	}
+	else if (landmassesRendered != renderLandmasses)
+	{
+		displayLandMasses();
 	}
 }
 
@@ -218,9 +236,6 @@ void AHexSphere::rebuildInstances(bool buildCollisionComponents)
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	if (GridTiles.Num() < tiles.Num() && buildCollisionComponents)
 	{
-#if WITH_EDITOR
-		
-#endif
 		while (GridTiles.Num() < tiles.Num())
 		{
 			UGridTileComponent* newTile = NewObject<UGridTileComponent>(this);
@@ -344,20 +359,44 @@ void AHexSphere::rebuildInstances(bool buildCollisionComponents)
 void AHexSphere::displayTectonicPlates()
 {
 	platesRendered = renderPlates;
-	continentLineDrawer->Flush();
+	tectonicPlateLineDrawer->Flush();
 	if (renderPlates)
 	{
 		FVector centerPoint = GetActorLocation();
+		TArray<FGridTileSet> plateTileSets = continentGen->getPlateSets();
 		for (const FGridTileSet& plateSet:plateTileSets)
 		{
 			for (const uint32& edgeIndex : plateSet.boarderEdges)
 			{
-				continentLineDrawer->DrawLine(centerPoint + gridGenerator->getEdge(edgeIndex)->getStartPoint()->getPosition(radius*1.1),
+				tectonicPlateLineDrawer->DrawLine(centerPoint + gridGenerator->getEdge(edgeIndex)->getStartPoint()->getPosition(radius*1.1),
 					centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Red, 2, 0.5);
 			}
 		}
 	}
 }
+
+void AHexSphere::displayLandMasses()
+{
+	landmassesRendered = renderLandmasses;
+	landMassLineDrawer->Flush();
+	if (renderLandmasses)
+	{
+		FVector centerPoint = GetActorLocation();
+		FGridTileSet landTileSet = continentGen->getLandSet();
+		TArray<int32> landBorder = continentGen->getSetBorderTiles(landTileSet);
+		for (const uint32& tileIndex : landBorder)
+		{
+			landMassLineDrawer->DrawPoint(centerPoint + gridGenerator->getTileLocation(tileIndex,radius*1.1), FLinearColor::Green, 2, 0.5);
+		}
+		FGridTileSet oceanTileSet = continentGen->getOceanSet();
+		TArray<int32> oceanBorder = continentGen->getSetBorderTiles(oceanTileSet);
+		for (const uint32& tileIndex : oceanBorder)
+		{
+			landMassLineDrawer->DrawPoint(centerPoint + gridGenerator->getTileLocation(tileIndex, radius*1.1), FLinearColor::Blue, 2, 0.5);
+		}
+	}
+}
+
 
 #if WITH_EDITOR
 void AHexSphere::buildDebugMesh()
