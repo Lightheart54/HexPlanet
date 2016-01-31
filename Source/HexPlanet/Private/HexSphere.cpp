@@ -110,10 +110,13 @@ void AHexSphere::Tick( float DeltaTime )
 	else
 	{
 		//rotate the sphere
-		FRotator currentRotation = GetActorRotation();
-		currentRotation.Yaw += 2 * PI / framesPerRotation;
-		SetActorRotation(currentRotation);
-		tectonicPlateLineDrawer->SetRelativeRotation(currentRotation);
+		if (framesPerRotation > 0)
+		{
+			FRotator currentRotation = GetActorRotation();
+			currentRotation.Yaw += 2 * PI / framesPerRotation;
+			SetActorRotation(currentRotation);
+			tectonicPlateLineDrawer->SetRelativeRotation(currentRotation);
+		}
 	}
 }
 
