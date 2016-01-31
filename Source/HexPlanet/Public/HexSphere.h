@@ -108,6 +108,8 @@ public:
 		bool displayTileMeshes;
 	UPROPERTY(EditAnywhere, Category = "Debug|GridDisplay", meta = (ToolTip = "Warning This Can Have Significant In Editor Performance Implications"))
 		bool displayCollisionTileMeshes;
+	UPROPERTY(VisibleAnywhere, Category = "Grid Properties")
+		int32 inGameNumTiles;
 #endif
 
 

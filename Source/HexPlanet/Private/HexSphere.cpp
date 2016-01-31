@@ -12,7 +12,7 @@ AHexSphere::AHexSphere()
 	USceneComponent* SphereComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent = SphereComponent;
 	
-	framesPerRotation = 100;
+	framesPerRotation = 2000;
 
 	//Grid Settings	
 	gridRoot = CreateDefaultSubobject<USceneComponent>(TEXT("GridRoot"));
@@ -61,6 +61,7 @@ AHexSphere::AHexSphere()
 	displayTileMeshes = true;
 	displayCollisionTileMeshes = false;
 	previewNextSubdivision = false;
+	inGameNumTiles = tiles.Num();
 #endif // WITH_EDITOR
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -113,7 +114,7 @@ void AHexSphere::Tick( float DeltaTime )
 		if (framesPerRotation > 0)
 		{
 			FRotator currentRotation = GetActorRotation();
-			currentRotation.Yaw += 2 * PI / framesPerRotation;
+			currentRotation.Yaw += 360.0 / framesPerRotation;
 			SetActorRotation(currentRotation);
 			tectonicPlateLineDrawer->SetRelativeRotation(currentRotation);
 		}
@@ -132,6 +133,7 @@ void AHexSphere::PostLoad()
 #ifdef WITH_EDITOR
 	calculateMesh(numPreviewSubdivions);
 	rebuildInstances(displayCollisionTileMeshes);
+	inGameNumTiles = 2 + (10 * FMath::Pow(3, numSubvisions));
 #endif
 	Super::PostLoad();
 }
@@ -141,6 +143,7 @@ void AHexSphere::PostInitProperties()
 #ifdef WITH_EDITOR
 	calculateMesh(numPreviewSubdivions);
 	rebuildInstances(displayCollisionTileMeshes);
+	inGameNumTiles = 2 + (10 * FMath::Pow(3, numSubvisions));
 #endif
 	Super::PostInitProperties();
 }
@@ -171,7 +174,11 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 
 	// We test using GET_MEMBER_NAME_CHECKED so that if someone changes the property name  
 	// in the future this will fail to compile and we can update it.  
-	if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, numPreviewSubdivions)))
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, numSubvisions)))
+	{
+		inGameNumTiles = 2 + (10 * FMath::Pow(3, numSubvisions));
+	}
+	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, numPreviewSubdivions)))
 	{
 		calculateMesh(numPreviewSubdivions);
 		rebuildInstances(displayCollisionTileMeshes);
