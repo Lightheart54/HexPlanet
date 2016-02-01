@@ -19,6 +19,7 @@ UContinentGenerator::UContinentGenerator()
 	numberOfPlateSeeds = 12;
 	numberOfSubPlateSeeds = 2;
 	addSubPlatesAfterIteration = 2;
+	tectonicPlateBoundarySeed = FMath::Rand();
 
 	//land massing settings
 	landMassingSeed = FMath::Rand();
@@ -65,7 +66,11 @@ void UContinentGenerator::installGrid(AHexSphere* myOwner, GridGenerator* gridGe
 
 void UContinentGenerator::buildTectonicPlates()
 {
-	TArray<FGridTileSet> plateTileSets;
+	if (!gridOwner->GridTileSets.Contains(ETileSetTypeEnum::ST_PLATE))
+	{
+		gridOwner->GridTileSets.Add(ETileSetTypeEnum::ST_PLATE);
+	}
+	TArray<FGridTileSet>& plateTileSets = gridOwner->GridTileSets[ETileSetTypeEnum::ST_PLATE];
 	FRandomStream randStream(tectonicPlateSeed);
 	plateTileSets.SetNumZeroed(numberOfPlateSeeds);
 	GridTilePtrList gridTiles = gridGen->getTiles();
@@ -123,8 +128,86 @@ void UContinentGenerator::buildTectonicPlates()
 	{
 		return set1.containedTiles.Num() > set2.containedTiles.Num();
 	});
+}
 
-	gridOwner->GridTileSets.Add(ETileSetTypeEnum::ST_PLATE, plateTileSets);
+void UContinentGenerator::setUpPlateBoundaries()
+{
+	TArray<FGridTileSet>& plateTileSets = gridOwner->GridTileSets[ETileSetTypeEnum::ST_PLATE];
+	if (!gridOwner->GridTileSets.Contains(ETileSetTypeEnum::ST_PLATE_BOUNDARY))
+	{
+		gridOwner->GridTileSets.Add(ETileSetTypeEnum::ST_PLATE_BOUNDARY);
+	}
+	TArray<FGridTileSet>& plateBoundarySet = gridOwner->GridTileSets[ETileSetTypeEnum::ST_PLATE_BOUNDARY];
+
+	GridTilePtrList availableTiles = gridGen->getTiles();
+	TArray<bool> edgeAvailability;
+	edgeAvailability.Init(true,gridGen->getEdges().Num());
+	FMath::RandInit(tectonicPlateBoundarySeed);
+	int8 maxBoundaryTypeValue = int8(EPlateBoarderType::PB_CONVERGENT);
+	for (FGridTileSet& plateSet : plateTileSets)
+	{
+		int32 plate1Index = plateSet.setIndex;
+		int32 plate2Index = -1;
+		int32 currentBoundaryIndex = -1;
+		for (const int32& edgeIndex : plateSet.boarderEdges)
+		{
+			if (!edgeAvailability[edgeIndex])
+			{
+				continue;
+			}
+			GridEdgePtr nextEdge = gridGen->getEdge(edgeIndex);
+			edgeAvailability[edgeIndex] = false;
+
+			FGridTile& tile1 = gridOwner->GridTiles[nextEdge->getTileIndexes()[0]];
+			FGridTile& tile2 = gridOwner->GridTiles[nextEdge->getTileIndexes()[1]];
+			int32 nextPlate2Index;
+			if (tile1.owningTileSets[int8(ETileSetTypeEnum::ST_PLATE)] == plate1Index)
+			{
+				nextPlate2Index = tile2.owningTileSets[int8(ETileSetTypeEnum::ST_PLATE)];
+			}
+			else
+			{
+				nextPlate2Index = tile1.owningTileSets[int8(ETileSetTypeEnum::ST_PLATE)];
+			}
+
+			if (nextPlate2Index != plate2Index)
+			{
+				plate2Index = nextPlate2Index;
+				//see if we already have a boundary for this pairing
+				FGridTileSet* nextPlateSet = plateBoundarySet.FindByPredicate([&plate1Index, &plate2Index](const FGridTileSet& boundarySet)->bool
+				{
+					return (boundarySet.setTags[1] == plate1Index && boundarySet.setTags[2] == plate2Index)
+						|| (boundarySet.setTags[2] == plate1Index && boundarySet.setTags[1] == plate2Index);
+				});
+				if (nextPlateSet != nullptr)
+				{
+					currentBoundaryIndex = nextPlateSet->setIndex;
+				}
+				else
+				{
+					//otherwise make a new one
+					FGridTileSet newBoundary;
+					newBoundary.setType = ETileSetTypeEnum::ST_PLATE_BOUNDARY;
+					newBoundary.setTags.Add(FMath::RandRange(0, maxBoundaryTypeValue));
+					newBoundary.setTags.Add(plate1Index);
+					newBoundary.setTags.Add(plate2Index);
+					newBoundary.setIndex = plateBoundarySet.Num();
+					currentBoundaryIndex = plateBoundarySet.Add(newBoundary);
+				}
+			}
+			
+			if (tile1.owningTileSets.Num() < int8(ETileSetTypeEnum::ST_PLATE_BOUNDARY) + 1)
+			{
+				tile1.owningTileSets.Add(currentBoundaryIndex);
+				addTileToTileSet(plateBoundarySet[currentBoundaryIndex], tile1.tileIndex, availableTiles);
+			}
+			if (tile2.owningTileSets.Num() < int8(ETileSetTypeEnum::ST_PLATE_BOUNDARY) + 1)
+			{
+				tile2.owningTileSets.Add(currentBoundaryIndex);
+				addTileToTileSet(plateBoundarySet[currentBoundaryIndex], tile2.tileIndex, availableTiles);
+			}
+		}
+	}
 }
 
 void UContinentGenerator::calculateLandMasses()
@@ -172,7 +255,13 @@ void UContinentGenerator::calculateLandMasses()
 
 
 	FGridTileSet landTileSet;
+	landTileSet.setIndex = 0;
+	landTileSet.setType = ETileSetTypeEnum::ST_TERRAIN_GROUP;
+	landTileSet.setTags.Add(int8(EPlateTypeEnum::PT_Land));
 	FGridTileSet oceanTileSet;
+	oceanTileSet.setIndex = 1;
+	oceanTileSet.setType = ETileSetTypeEnum::ST_TERRAIN_GROUP;
+	oceanTileSet.setTags.Add(int8(EPlateTypeEnum::PT_Ocean));
 	for (FGridTileSet& plateSet : plateTileSets)
 	{
 		if (plateSet.setTags[0] == uint8(EPlateTypeEnum::PT_Ocean))
@@ -270,6 +359,9 @@ bool UContinentGenerator::addTileToTileSet(FGridTileSet& tileSet, const uint32& 
 				tileSet.boarderEdges.Remove(edgePtr->getIndex());
 			}
 		}
+		FGridTile& gridTile = gridOwner->GridTiles[seedTile];
+		gridTile.owningTileSets.SetNumZeroed(int8(tileSet.setType)+1);
+		gridTile.owningTileSets[int8(tileSet.setType)] = tileSet.setIndex;
 		return true;
 	}
 	return false;

@@ -33,6 +33,10 @@ AHexSphere::AHexSphere()
 	platesRendered = false;
 	buildPlates = true;
 	tectonicPlateLineDrawer = CreateDefaultSubobject<ULineBatchComponent>(TEXT("TectonicPlateDrawer"));
+	plateBoundaryLineDrawer = CreateDefaultSubobject<ULineBatchComponent>(TEXT("TectonicPlateBoundaryDrawer"));
+	renderPlatesBoundaries = false;
+	calcPlateBoundaries = true;
+	plateBoundariesRendered = false;
 
 	//land massing settings
 	calcLandMasses = true;
@@ -97,6 +101,16 @@ void AHexSphere::Tick( float DeltaTime )
 	{
 		displayTectonicPlates();
 	}
+	else if (calcPlateBoundaries)
+	{
+		calcPlateBoundaries = false;
+		continentGen->setUpPlateBoundaries();
+		plateBoundariesRendered = false;
+	}
+	else if (plateBoundariesRendered != renderPlatesBoundaries)
+	{
+		displayPlateBoundaries();
+	}
 	else if (calcLandMasses)
 	{
 		calcLandMasses = false;
@@ -149,7 +163,9 @@ void AHexSphere::PostInitProperties()
 
 TArray<FGridTile> AHexSphere::GetGridTiles() const
 {
-	return GridTiles;
+	TArray<FGridTile> valArray;
+	GridTiles.GenerateValueArray(valArray);
+	return valArray;
 }
 
 FGridTile AHexSphere::GetGridTile(const int32& tileKey) const
@@ -264,17 +280,14 @@ void AHexSphere::rebuildInstances()
 	GridTilePtrList tiles = gridGenerator->getTiles();
 	if (GridTiles.Num() < tiles.Num())
 	{
+		int32 tileKey = GridTiles.Num();
 		while (GridTiles.Num() < tiles.Num())
 		{
 			FGridTile newTile;
-			int32 tileKey = GridTiles.Add(newTile);
 			newTile.tileIndex = tileKey;
+			GridTiles.Add(tileKey, newTile);
 			++tileKey;
 		}
-	}
-	else
-	{
-		GridTiles.SetNum(GridTiles.Num());
 	}
 
 	for (const GridTilePtr& tile : tiles)
@@ -482,6 +495,32 @@ void AHexSphere::displayLandMasses()
 	}
 }
 
+
+void AHexSphere::displayPlateBoundaries()
+{
+	plateBoundariesRendered = renderPlatesBoundaries;
+	plateBoundaryLineDrawer->Flush();
+	if (renderPlatesBoundaries)
+	{
+		FVector centerPoint = GetActorLocation();
+		for (const FGridTileSet& plateSet : GridTileSets[ETileSetTypeEnum::ST_PLATE_BOUNDARY])
+		{
+			for (const uint32& edgeIndex : plateSet.boarderEdges)
+			{
+				if (plateSet.setTags[0] == int8(EPlateBoarderType::PB_CONVERGENT))
+				{
+					plateBoundaryLineDrawer->DrawLine(centerPoint + gridGenerator->getEdge(edgeIndex)->getStartPoint()->getPosition(radius*1.1),
+						centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Blue, 2, 0.5);
+				}
+				else
+				{
+					plateBoundaryLineDrawer->DrawLine(centerPoint + gridGenerator->getEdge(edgeIndex)->getStartPoint()->getPosition(radius*1.1),
+						centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Yellow, 2, 0.5);
+				}				
+			}
+		}
+	}
+}
 
 #if WITH_EDITOR
 void AHexSphere::buildDebugMesh()

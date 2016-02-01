@@ -81,8 +81,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grid Properties")
 	int32 numTiles;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Grid Properties")
-	TArray<FGridTile> GridTiles;
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Grid Properties")
+	TMap<int32,FGridTile> GridTiles;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	TArray<FGridTile> GetGridTiles() const;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
@@ -115,6 +115,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration")
 	bool renderPlates;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration")
+	bool renderPlatesBoundaries;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WorldGeneration")
 	bool renderLandmasses;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WorldGeneration")
@@ -180,6 +182,10 @@ protected:
 	bool landmassesRendered;
 	ULineBatchComponent* landMassLineDrawer;
 	void displayLandMasses();
+	ULineBatchComponent* plateBoundaryLineDrawer;
+	void displayPlateBoundaries();
+	bool calcPlateBoundaries;
+	bool plateBoundariesRendered;
 
 #if WITH_EDITOR
 	ULineBatchComponent* debugMesh;

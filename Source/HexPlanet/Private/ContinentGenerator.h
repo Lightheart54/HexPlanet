@@ -14,6 +14,25 @@ enum class EPlateTypeEnum : uint8
 	PT_Ocean 	UMETA(DisplayName = "Ocean"),
 	PT_Unassigned	UMETA(DisplayName = "Unassigned")
 };
+//Tectonic Plates set their type in tag[0]
+//				  list their borders in tag[1...n]
+
+
+UENUM(BlueprintType)		//"BlueprintType" is essential to include
+enum class EPlateBoarderType : uint8
+{
+	PB_DIVERGENT 	UMETA(DisplayName = "Divergent"),
+	PB_CONVERGENT 	UMETA(DisplayName = "Convergent")
+};
+
+UENUM(BlueprintType)		//"BlueprintType" is essential to include
+enum class EPlateBoarderTagIndex : uint8
+{
+	PBT_PLATE_TYPE 	UMETA(DisplayName = "Plate Type"),
+	PBT_PLATE_1 	UMETA(DisplayName = "Plate 1 Index"),
+	PBT_PLATE_2 	UMETA(DisplayName = "Plate 2 Index")
+};
+
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class UContinentGenerator : public UActorComponent
@@ -32,6 +51,9 @@ public:
 		int32 numberOfSubPlateSeeds;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
 		int32 addSubPlatesAfterIteration;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
+		int32 tectonicPlateBoundarySeed;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing")
 		int32 landMassingSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing",
@@ -70,6 +92,7 @@ public:
 	void installGrid(AHexSphere* myOwner, GridGenerator* gridGenerator);
 	
 	void buildTectonicPlates();
+	void setUpPlateBoundaries();
 	void calculateLandMasses();
 
 	void createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets, const uint32& maxNumIterations = -1);
