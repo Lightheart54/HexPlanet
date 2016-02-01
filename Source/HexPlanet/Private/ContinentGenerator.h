@@ -7,7 +7,13 @@
 #include "HexSphere.h"
 #include "ContinentGenerator.generated.h"
 
-
+UENUM(BlueprintType)		//"BlueprintType" is essential to include
+enum class EPlateTypeEnum : uint8
+{
+	PT_Land 	UMETA(DisplayName = "Land"),
+	PT_Ocean 	UMETA(DisplayName = "Ocean"),
+	PT_Unassigned	UMETA(DisplayName = "Unassigned")
+};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class UContinentGenerator : public UActorComponent
@@ -84,6 +90,8 @@ protected:
 	
 	TArray<FGridTileSet> plateTileSets; 
 	TArray<FGridTileSet> subdividePlate(const FGridTileSet &plateSet, const int32& plateSeed);
+
+	TArray<FGridTileSet> plateBorderSets;
 	FGridTileSet landTileSet;
 	FGridTileSet oceanTileSet;
 };

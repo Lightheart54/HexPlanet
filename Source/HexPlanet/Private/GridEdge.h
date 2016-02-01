@@ -13,6 +13,7 @@ public:
 	 
 	void setStartAndEndPoints(const int32& newStartPoint, const int32& newEndPoint);
 	GridTilePtrList getTiles() const;
+	TArray<int32> getTileIndexes() const;
 	GridNodePtr getStartPoint() const;
 	GridNodePtr getEndPoint() const;
 	const FVector& getPosition() const;

@@ -52,6 +52,38 @@ GridEdgePtrList GridTile::getEdges() const
 	return edges;
 }
 
+TArray<int32> GridTile::getNeighborIndexes() const
+{
+	GridEdgePtrList edges = getEdges();
+	TArray<int32> neighbors;
+	for (const GridEdgePtr& edge : edges)
+	{
+		TArray<int32> edgeTiles = edge->getTileIndexes();
+		if (edgeTiles[0] == myIndex)
+		{
+			neighbors.Add(edgeTiles[1]);
+		}
+		else
+		{
+			neighbors.Add(edgeTiles[0]);
+		}
+	}
+	return neighbors;
+}
+
+TArray<int32> GridTile::getEdgeIndexes() const
+{
+	TArray<int32> edges;
+	for (size_t i = 0; i < myNumEdges; i++)
+	{
+		if (i != 6 || myEdges[i] != std::numeric_limits<int32>::max())
+		{
+			edges.Add(myEdges[i]);
+		}
+	}
+	return edges;
+}
+
 GridNodePtrList GridTile::getNodes() const
 {
 	GridEdgePtrList edges = getEdges();

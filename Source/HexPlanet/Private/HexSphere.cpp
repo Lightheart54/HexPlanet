@@ -3,8 +3,8 @@
 #include "HexPlanet.h"
 #include "HexSphere.h"
 #include "GridGenerator.h"
-#include "GridTileComponent.h"
 #include "ContinentGenerator.h"
+#include <limits>
 
 // Sets default values
 AHexSphere::AHexSphere() 
@@ -59,7 +59,6 @@ AHexSphere::AHexSphere()
 	renderEdges = true;
 	displayEdgeLengths = false;
 	displayTileMeshes = true;
-	displayCollisionTileMeshes = false;
 	previewNextSubdivision = false;
 	inGameNumTiles = tiles.Num();
 #endif // WITH_EDITOR
@@ -86,12 +85,13 @@ void AHexSphere::Tick( float DeltaTime )
 	}
 	else if (instancesDirty)
 	{
-		rebuildInstances(true);
+		rebuildInstances();
 	}
 	else if (buildPlates)
 	{
 		buildPlates = false;
 		continentGen->buildTectonicPlates();
+		GridTileSets.Add(ETileSetTypeEnum::ST_PLATE, continentGen->getPlateSets());
 		platesRendered = false;
 	}
 	else if (platesRendered != renderPlates)
@@ -102,6 +102,9 @@ void AHexSphere::Tick( float DeltaTime )
 	{
 		calcLandMasses = false;
 		continentGen->calculateLandMasses();
+		GridTileSets.Add(ETileSetTypeEnum::ST_TERRAIN_GROUP);
+		GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP].Add(continentGen->getLandSet());
+		GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP].Add(continentGen->getOceanSet());
 		landmassesRendered = false;
 	}
 	else if (landmassesRendered != continentGen->overlayLandWaterMap)
@@ -132,7 +135,7 @@ void AHexSphere::PostLoad()
 {
 #ifdef WITH_EDITOR
 	calculateMesh(numPreviewSubdivions);
-	rebuildInstances(displayCollisionTileMeshes);
+	rebuildInstances();
 	inGameNumTiles = 2 + (10 * FMath::Pow(3, numSubvisions));
 #endif
 	Super::PostLoad();
@@ -142,24 +145,32 @@ void AHexSphere::PostInitProperties()
 {
 #ifdef WITH_EDITOR
 	calculateMesh(numPreviewSubdivions);
-	rebuildInstances(displayCollisionTileMeshes);
+	rebuildInstances();
 	inGameNumTiles = 2 + (10 * FMath::Pow(3, numSubvisions));
 #endif
 	Super::PostInitProperties();
 }
 
-TArray<UGridTileComponent*> AHexSphere::GetGridTiles() const
+TArray<FGridTile> AHexSphere::GetGridTiles() const
 {
 	return GridTiles;
 }
 
-UGridTileComponent* AHexSphere::GetGridTile(const int32& tileKey) const
+FGridTile AHexSphere::GetGridTile(const int32& tileKey) const
 {
 	if (GridTiles.Num() < tileKey)
 	{
 		return GridTiles[tileKey];
 	}
-	return nullptr;
+	return FGridTile();
+}
+
+void AHexSphere::UpdateGridTile(const FGridTile& newTile)
+{
+	if (GridTiles.Num() < newTile.tileIndex)
+	{
+		GridTiles[newTile.tileIndex] = newTile;
+	}
 }
 
 #if WITH_EDITOR  
@@ -181,7 +192,7 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, numPreviewSubdivions)))
 	{
 		calculateMesh(numPreviewSubdivions);
-		rebuildInstances(displayCollisionTileMeshes);
+		rebuildInstances();
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, radius))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, HexagonMeshInnerRadius))
@@ -189,12 +200,11 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 		||(PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, PentagonMesh))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, HexagonMesh))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, tileFillRatio))
-		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayTileMeshes))
-		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayCollisionTileMeshes)))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, displayTileMeshes)))
 	{
 		hexagonMeshComponent->SetVisibility(displayTileMeshes);
 		pentagonMeshComponent->SetVisibility(displayTileMeshes);
-		rebuildInstances(displayCollisionTileMeshes);
+		rebuildInstances();
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderNodes))
 		 ||(PropertyName == GET_MEMBER_NAME_CHECKED(AHexSphere, renderEdges))
@@ -247,7 +257,7 @@ void AHexSphere::calculateMesh(const int8& localNumSubdivisions)
 #endif // WITH_EDITOR
 }
 
-void AHexSphere::rebuildInstances(bool buildCollisionComponents)
+void AHexSphere::rebuildInstances()
 {
 	instancesDirty = false;
 	pentagonMeshComponent->ClearInstances();
@@ -255,40 +265,18 @@ void AHexSphere::rebuildInstances(bool buildCollisionComponents)
 	pentagonMeshComponent->SetStaticMesh(PentagonMesh);
 	hexagonMeshComponent->SetStaticMesh(HexagonMesh);
 	GridTilePtrList tiles = gridGenerator->getTiles();
-	if (GridTiles.Num() < tiles.Num() && buildCollisionComponents)
+	if (GridTiles.Num() < tiles.Num())
 	{
 		while (GridTiles.Num() < tiles.Num())
 		{
-			UGridTileComponent* newTile = NewObject<UGridTileComponent>(this);
+			FGridTile newTile;
 			int32 tileKey = GridTiles.Add(newTile);
-#if WITH_EDITOR
-			USceneComponent* tileBucket = nullptr;
-			int32 bucketKey = tileKey / 250;
-			if (bucketKey >= GridTileBuckets.Num())
-			{
-				tileBucket = NewObject<USceneComponent>(this);
-				bucketKey = GridTileBuckets.Add(tileBucket);
-				tileBucket->AttachTo(gridRoot);
-				tileBucket->RegisterComponent();
-			}
-			tileBucket = GridTileBuckets[bucketKey];
-			newTile->AttachTo(tileBucket);
-#else
-			newTile->AttachTo(gridRoot);
-#endif
-			newTile->RegisterComponent();
-			newTile->gridOwner = this;
-			newTile->tileKey = tileKey;
+			newTile.tileIndex = tileKey;
 			++tileKey;
 		}
 	}
 	else
 	{
-		for (int32 oldIndex = GridTiles.Num(); oldIndex < GridTiles.Num(); ++oldIndex)
-		{
-			GridTiles[oldIndex]->DetachFromParent();
-			GridTiles[oldIndex]->DestroyComponent();
-		}
 		GridTiles.SetNum(GridTiles.Num());
 	}
 
@@ -321,36 +309,67 @@ void AHexSphere::rebuildInstances(bool buildCollisionComponents)
 			tileMapMesher = hexagonMeshComponent;
 			myMesh = HexagonMesh;
 		}
-		FTransform instanceTransform = getTileTransform(tileKey, baseInnerRadius);
+		FTransform instanceTransform = calcTileTransform(tileKey, baseInnerRadius);
 		if (displayTileMeshes && !inGame)
 		{
 			tileMapMesher->AddInstance(instanceTransform);
 		}
 
-		if (buildCollisionComponents)
-		{
-			UGridTileComponent* thisTile;
-			thisTile = GridTiles[tileKey];
-			GridTilePtrList gridNeighbors = tile->getNeighbors();
-			thisTile->SetVisibility(buildCollisionComponents);
-			for (const GridTilePtr gridNeighborPtr : gridNeighbors)
-			{
-				thisTile->gridNeighborKeys.Add(gridNeighborPtr->getIndex());
-			}
-			FBox meshBB = myMesh->GetBoundingBox();
-			thisTile->mapMesh = tileMapMesher;
-			thisTile->instanceMeshNum = tileKey;
-			FVector tileCenter = instanceTransform.GetLocation();
-			instanceTransform.SetLocation(1.1*tileCenter);
-			thisTile->SetRelativeTransform(instanceTransform);
-			thisTile->SetStaticMesh(myMesh);
-			thisTile->SetVisibility(displayCollisionTileMeshes);
-		}
+		FGridTile& thisTile = GridTiles[tileKey];
+		thisTile.neighbors = tile->getNeighborIndexes();
+		thisTile.tileTransform = instanceTransform;
 	}
 }
 
 
-FTransform AHexSphere::getTileTransform(const int32& tileKey, const float& baseTileInnerRadius)
+
+FTransform AHexSphere::getTileTransform(const int32& tileKey) const
+{
+	return GridTiles[tileKey].tileTransform;
+}
+
+TArray<FGridTileSet> AHexSphere::GetTileSets(const ETileSetTypeEnum& tileKey) const
+{
+	if (GridTileSets.Contains(tileKey))
+	{
+		return GridTileSets[tileKey];
+	}
+	return TArray<FGridTileSet>();
+}
+
+FGridTileSet AHexSphere::GetTileSet(const ETileSetTypeEnum& tileKey, const int32& setNum) const
+{
+	if (GridTileSets.Contains(tileKey))
+	{
+		if (GridTileSets[tileKey].Num() > setNum)
+		{
+			return GridTileSets[tileKey][setNum];
+		}
+	}
+	return FGridTileSet();
+}
+
+void AHexSphere::AddOrUpdateTileSet(FGridTileSet& tileSet)
+{
+	if (!GridTileSets.Contains(tileSet.setType))
+	{
+		GridTileSets.Add(tileSet.setType, TArray<FGridTileSet>());
+		tileSet.setIndex = std::numeric_limits<int32>::max();
+	}
+
+	if (GridTileSets[tileSet.setType].Num() > tileSet.setIndex)
+	{
+		GridTileSets[tileSet.setType][tileSet.setIndex] = tileSet;
+	}
+	else
+	{
+		int32 newIndex = GridTileSets[tileSet.setType].Add(tileSet);
+		GridTileSets[tileSet.setType][tileSet.setIndex].setIndex = newIndex;
+		tileSet.setIndex = newIndex;
+	}
+}
+
+FTransform AHexSphere::calcTileTransform(const int32& tileKey, const float& baseTileInnerRadius)
 {
 	GridTilePtr tile = gridGenerator->getTile(tileKey);
 	GridEdgePtrList tileEdges = tile->getEdges();
@@ -404,7 +423,7 @@ void AHexSphere::displayTectonicPlates()
 	{
 		FVector centerPoint = GetActorLocation();
 		TArray<FGridTileSet> plateTileSets = continentGen->getPlateSets();
-		for (const FGridTileSet& plateSet:plateTileSets)
+		for (const FGridTileSet& plateSet:GridTileSets[ETileSetTypeEnum::ST_PLATE])
 		{
 			for (const uint32& edgeIndex : plateSet.boarderEdges)
 			{
@@ -424,7 +443,7 @@ void AHexSphere::displayLandMasses()
 	continentGen->pentagonOceanInstanceMesher->ClearInstances();
 	if (renderLandmasses)
 	{
-		FGridTileSet landTileSet = continentGen->getLandSet();
+		FGridTileSet landTileSet = GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][uint8(EPlateTypeEnum::PT_Land)];
 		for (const int32& landTile : landTileSet.containedTiles)
 		{
 			GridTilePtr tilePtr = gridGenerator->getTile(landTile);
@@ -441,10 +460,10 @@ void AHexSphere::displayLandMasses()
 				baseInnerRadius = HexagonMeshInnerRadius;
 				tileMesher = continentGen->hexagonLandInstanceMesher;
 			}
-			FTransform instanceTransform = getTileTransform(landTile, baseInnerRadius);
+			FTransform instanceTransform = getTileTransform(landTile);
 			tileMesher->AddInstance(instanceTransform);
 		}
-		FGridTileSet oceanTileSet = continentGen->getOceanSet();
+		FGridTileSet oceanTileSet = GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][uint8(EPlateTypeEnum::PT_Ocean)];
 		for (const int32& oceanTile : oceanTileSet.containedTiles)
 		{
 			GridTilePtr tilePtr = gridGenerator->getTile(oceanTile);
@@ -461,7 +480,7 @@ void AHexSphere::displayLandMasses()
 				baseInnerRadius = HexagonMeshInnerRadius;
 				tileMesher = continentGen->hexagonOceanInstanceMesher;
 			}
-			FTransform instanceTransform = getTileTransform(oceanTile, baseInnerRadius);
+			FTransform instanceTransform = getTileTransform(oceanTile);
 			tileMesher->AddInstance(instanceTransform);
 		}
 	}

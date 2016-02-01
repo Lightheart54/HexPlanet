@@ -76,6 +76,7 @@ void UContinentGenerator::buildTectonicPlates()
 		{
 			seedTile = randStream.RandRange(0, gridOwner->numTiles - 1);
 		} while (!addTileToTileSet(tileSet, seedTile, gridTiles));
+		tileSet.setTags.Add(uint8(EPlateTypeEnum::PT_Unassigned));
 	}
 
 	createVoronoiDiagramFromSeedSets(gridTiles, plateTileSets, addSubPlatesAfterIteration);
@@ -89,6 +90,7 @@ void UContinentGenerator::buildTectonicPlates()
 			seedTile = randStream.RandRange(0, gridOwner->numTiles - 1);
 		} while (!addTileToTileSet(tileSet, seedTile, gridTiles));
 		plateTileSets.Add(tileSet);
+		tileSet.setTags.Add(uint8(EPlateTypeEnum::PT_Unassigned));
 	}
 	createVoronoiDiagramFromSeedSets(gridTiles, plateTileSets);
 
@@ -124,48 +126,60 @@ void UContinentGenerator::calculateLandMasses()
 {
 	//first we need to know which plates are primarily land and which are primarily water
 	float effectivePercentOcean = 0.0;
-	TArray<FGridTileSet> landSets = plateTileSets;
-	TArray<FGridTileSet> oceanSets;
 	int32 nextSetIndex = 0;
 	float smallestRemainingSet = 1.0;
-	int32 itNum = 0;
-	while (effectivePercentOcean < percentOcean)
+	int32 numSetsRemaining = plateTileSets.Num();
+	while (numSetsRemaining != 0)
 	{
-		float tileSetCoverage = landSets[nextSetIndex].containedTiles.Num()*1.0 / gridOwner->numTiles;
+		if (plateTileSets[nextSetIndex].setTags[0] != uint8(EPlateTypeEnum::PT_Unassigned))
+		{
+			nextSetIndex++;
+		}
+
+		float tileSetCoverage = plateTileSets[nextSetIndex].containedTiles.Num()*1.0 / gridOwner->numTiles;
 		if (tileSetCoverage < percentOcean - effectivePercentOcean)
 		{
 			effectivePercentOcean += tileSetCoverage;
-			oceanSets.Add(landSets[nextSetIndex]);
-			landSets.RemoveAt(nextSetIndex);
+			plateTileSets[nextSetIndex].setTags[0] = uint8(EPlateTypeEnum::PT_Ocean);
+			++nextSetIndex;
+			--numSetsRemaining;
 		}
 		else if (tileSetCoverage < smallestRemainingSet)
 		{
 			smallestRemainingSet = tileSetCoverage;
 		}
-		nextSetIndex++;
-		if (nextSetIndex >= landSets.Num())
+		else if (tileSetCoverage > percentOcean - effectivePercentOcean)
+		{
+			plateTileSets[nextSetIndex].setTags[0] = uint8(EPlateTypeEnum::PT_Land);
+			--numSetsRemaining;
+		}
+
+		++nextSetIndex;
+		if (nextSetIndex >= plateTileSets.Num())
 		{
 			nextSetIndex = 0;
-			itNum++;
-			if (itNum > 2 && smallestRemainingSet > percentOcean - effectivePercentOcean)
-			{
-				//break out if we're not going to be able to meet the condition
-				break;
-			}
 		}
 	}
+
+	//categorize plate boundaries
 	FMath::RandInit(landMassingSeed);
-	for (const FGridTileSet& landSet : landSets)
+
+
+
+	for (FGridTileSet& plateSet : plateTileSets)
 	{
-		TArray<FGridTileSet> subdividedPlate = subdividePlate(landSet, FMath::Rand());
-		addTileSetToTileSet(landTileSet, subdividedPlate[0]);
-		addTileSetToTileSet(oceanTileSet, subdividedPlate[1]);
-	}
-	for (const FGridTileSet& oceanSet : oceanSets)
-	{
-		TArray<FGridTileSet> subdividedPlate = subdividePlate(oceanSet, FMath::Rand());
-		addTileSetToTileSet(oceanTileSet, subdividedPlate[0]);
-		addTileSetToTileSet(landTileSet, subdividedPlate[1]);
+		if (plateSet.setTags[0] == uint8(EPlateTypeEnum::PT_Ocean))
+		{
+			TArray<FGridTileSet> subdividedPlate = subdividePlate(plateSet, FMath::Rand());
+			addTileSetToTileSet(oceanTileSet, subdividedPlate[0]);
+			addTileSetToTileSet(landTileSet, subdividedPlate[1]);
+		}
+		else
+		{
+			TArray<FGridTileSet> subdividedPlate = subdividePlate(plateSet, FMath::Rand());
+			addTileSetToTileSet(landTileSet, subdividedPlate[0]);
+			addTileSetToTileSet(oceanTileSet, subdividedPlate[1]);
+		}
 	}
 }
 

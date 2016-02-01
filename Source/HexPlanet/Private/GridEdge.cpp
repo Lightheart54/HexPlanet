@@ -54,6 +54,14 @@ GridTilePtrList GridEdge::getTiles() const
 	return neighbors;
 }
 
+TArray<int32> GridEdge::getTileIndexes() const
+{
+	TArray<int32> tileIndexes;
+	tileIndexes.Add(tiles[0]);
+	tileIndexes.Add(tiles[1]);
+	return tileIndexes;
+}
+
 GridNodePtr GridEdge::getStartPoint() const
 {
 	return gridOwner->getNode(startPoint);

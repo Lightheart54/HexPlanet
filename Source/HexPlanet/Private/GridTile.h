@@ -14,6 +14,8 @@ public:
 	~GridTile();
 	GridTilePtrList getNeighbors() const;
 	GridEdgePtrList getEdges() const;
+	TArray<int32> getNeighborIndexes() const;
+	TArray<int32> getEdgeIndexes() const;
 	GridNodePtrList getNodes() const;
 	const FVector& getPosition() const;
 	FVector getPosition(const float& radius) const;
