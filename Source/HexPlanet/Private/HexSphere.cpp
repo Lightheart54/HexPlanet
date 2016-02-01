@@ -510,12 +510,12 @@ void AHexSphere::displayPlateBoundaries()
 				if (plateSet.setTags[0] == int8(EPlateBoarderType::PB_CONVERGENT))
 				{
 					plateBoundaryLineDrawer->DrawLine(centerPoint + gridGenerator->getEdge(edgeIndex)->getStartPoint()->getPosition(radius*1.1),
-						centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Blue, 2, 0.5);
+						centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Yellow, 2, 0.5);
 				}
 				else
 				{
 					plateBoundaryLineDrawer->DrawLine(centerPoint + gridGenerator->getEdge(edgeIndex)->getStartPoint()->getPosition(radius*1.1),
-						centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Yellow, 2, 0.5);
+						centerPoint + gridGenerator->getEdge(edgeIndex)->getEndPoint()->getPosition(radius*1.1), FLinearColor::Blue, 2, 0.5);
 				}				
 			}
 		}

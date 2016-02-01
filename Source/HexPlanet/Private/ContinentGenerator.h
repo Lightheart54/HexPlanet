@@ -66,11 +66,18 @@ public:
 		meta = (ClampMin = "1", UIMin = "1", ClampMax = "10", UIMax = "10"))
 		int32 primaryPlateTypeDensity;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+		float primaryRateAlongFault;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing",
 		meta = (ClampMin = "0", UIMin = "0", ClampMax = "10", UIMax = "10"))
 		int32 minSecondaryPlateTypeSeeds;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing",
 		meta = (ClampMin = "0", UIMin = "0", ClampMax = "10", UIMax = "10"))
 		int32 secondaryPlateTypeDensity;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LandMassing",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+		float secondRateAlongFault;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|MapDisplay")
 		bool overlayLandWaterMap;
@@ -97,8 +104,7 @@ public:
 
 	void createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets, const uint32& maxNumIterations = -1);
 
-	TArray<FGridTileSet> subdivideSetIntoSubgroups(const FGridTileSet& tileSet, const TArray<int32> subgroupSeedCount,
-		const int32& groupSeed);
+	
 	bool addTileToTileSet(FGridTileSet& tileSet, const uint32& seedTile, GridTilePtrList& availableTiles);
 
 	TArray<int32> getSetBorderTiles(const FGridTileSet& tileSet) const;
@@ -107,5 +113,5 @@ public:
 protected:
 	AHexSphere* gridOwner;
 	GridGenerator* gridGen;
-	TArray<FGridTileSet> subdividePlate(const FGridTileSet &plateSet, const int32& plateSeed);
+	void subdividePlate(const FGridTileSet &plateSet);
 };
