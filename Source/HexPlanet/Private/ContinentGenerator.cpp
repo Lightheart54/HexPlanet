@@ -223,9 +223,15 @@ void UContinentGenerator::calculateLandMasses()
 	int32 numSetsRemaining = plateTileSets.Num();
 	while (numSetsRemaining != 0)
 	{
+		if (nextSetIndex >= plateTileSets.Num())
+		{
+			nextSetIndex = 0;
+		}
+
 		if (plateTileSets[nextSetIndex].setTags[0] != uint8(EPlateTypeEnum::PT_Unassigned))
 		{
 			nextSetIndex++;
+			continue;
 		}
 
 		float tileSetCoverage = plateTileSets[nextSetIndex].containedTiles.Num()*1.0 / gridOwner->numTiles;
@@ -247,10 +253,6 @@ void UContinentGenerator::calculateLandMasses()
 		}
 
 		++nextSetIndex;
-		if (nextSetIndex >= plateTileSets.Num())
-		{
-			nextSetIndex = 0;
-		}
 	}
 
 	//categorize plate boundaries
