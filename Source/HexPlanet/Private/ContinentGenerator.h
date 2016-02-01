@@ -71,9 +71,6 @@ public:
 	
 	void buildTectonicPlates();
 	void calculateLandMasses();
-	TArray<FGridTileSet> getPlateSets() const;
-	FGridTileSet getOceanSet() const;
-	FGridTileSet getLandSet() const;
 
 	void createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets, const uint32& maxNumIterations = -1);
 
@@ -87,11 +84,5 @@ public:
 protected:
 	AHexSphere* gridOwner;
 	GridGenerator* gridGen;
-	
-	TArray<FGridTileSet> plateTileSets; 
 	TArray<FGridTileSet> subdividePlate(const FGridTileSet &plateSet, const int32& plateSeed);
-
-	TArray<FGridTileSet> plateBorderSets;
-	FGridTileSet landTileSet;
-	FGridTileSet oceanTileSet;
 };

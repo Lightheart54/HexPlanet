@@ -91,7 +91,6 @@ void AHexSphere::Tick( float DeltaTime )
 	{
 		buildPlates = false;
 		continentGen->buildTectonicPlates();
-		GridTileSets.Add(ETileSetTypeEnum::ST_PLATE, continentGen->getPlateSets());
 		platesRendered = false;
 	}
 	else if (platesRendered != renderPlates)
@@ -102,9 +101,6 @@ void AHexSphere::Tick( float DeltaTime )
 	{
 		calcLandMasses = false;
 		continentGen->calculateLandMasses();
-		GridTileSets.Add(ETileSetTypeEnum::ST_TERRAIN_GROUP);
-		GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP].Add(continentGen->getLandSet());
-		GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP].Add(continentGen->getOceanSet());
 		landmassesRendered = false;
 	}
 	else if (landmassesRendered != continentGen->overlayLandWaterMap)
@@ -231,6 +227,7 @@ void AHexSphere::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCh
 
 void AHexSphere::OnConstruction(const FTransform& Transform)
 {
+	Super::OnConstruction(Transform);
 	rebuildDebugMesh();
 	genSubdivisionPreview();
 }
@@ -422,7 +419,6 @@ void AHexSphere::displayTectonicPlates()
 	if (renderPlates)
 	{
 		FVector centerPoint = GetActorLocation();
-		TArray<FGridTileSet> plateTileSets = continentGen->getPlateSets();
 		for (const FGridTileSet& plateSet:GridTileSets[ETileSetTypeEnum::ST_PLATE])
 		{
 			for (const uint32& edgeIndex : plateSet.boarderEdges)
