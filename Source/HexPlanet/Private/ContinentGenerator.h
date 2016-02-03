@@ -102,10 +102,10 @@ public:
 	void setUpPlateBoundaries();
 	void calculateLandMasses();
 
-	void createVoronoiDiagramFromSeedSets(GridTilePtrList &gridTiles, TArray<FGridTileSet>& seedSets, const uint32& maxNumIterations = -1);
+	void createVoronoiDiagramFromSeedSets(TArray<bool>& availableTiles, TArray<FGridTileSet>& seedSets, const uint32& maxNumIterations = -1);
 
 	
-	bool addTileToTileSet(FGridTileSet& tileSet, const uint32& seedTile, GridTilePtrList& availableTiles);
+	bool addTileToTileSet(FGridTileSet& tileSet, const uint32& seedTile, TArray<bool>& availableTiles);
 
 	TArray<int32> getSetBorderTiles(const FGridTileSet& tileSet) const;
 	void addTileSetToTileSet(FGridTileSet& set1, const FGridTileSet& set2);
