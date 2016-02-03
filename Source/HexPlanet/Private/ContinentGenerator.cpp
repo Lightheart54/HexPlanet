@@ -20,7 +20,9 @@ UContinentGenerator::UContinentGenerator()
 	numberOfPlateSeeds = 12;
 	numberOfSubPlateSeeds = 2;
 	addSubPlatesAfterIteration = 2;
-	tectonicPlateBoundarySeed = FMath::Rand();
+	tectonicPlateBoundarySeed = FMath::Rand(); 
+	percentTilesForShapeReseed = 0.05;
+	percentTilesForBorderReseed = 0.75;
 
 	//land massing settings
 	landMassingSeed = FMath::Rand();
@@ -108,32 +110,42 @@ void UContinentGenerator::buildTectonicPlates()
 	createVoronoiDiagramFromSeedSets(usedTiles, plateTileSets);
 
 	// rebuild the plates from a random set of seed tiles inside of the plate
-	gridTiles = gridGen->getTiles(); 
-	usedTiles.Init(true, gridTiles.Num());
-	for (FGridTileSet& tileSet : plateTileSets)
-	{
-		int32 numSubSeeds = tileSet.containedTiles.Num() / 30 + 1;
-		TArray<int32> subSeedNums;
-		for (int32 subseedNum = 0; subseedNum < numSubSeeds; ++subseedNum)
-		{
-			int32 newSubSeed = randStream.RandRange(0, tileSet.containedTiles.Num()-1);
-			subSeedNums.Add(tileSet.containedTiles[newSubSeed]);
-		}
-		tileSet.boarderEdges.Empty();
-		tileSet.containedTiles.Empty();
-		for (const int32& subSeed:subSeedNums)
-		{
-			addTileToTileSet(tileSet, subSeed, usedTiles);
-		}
-	}
-
-	createVoronoiDiagramFromSeedSets(usedTiles, plateTileSets);
+	// to adjust the overall shape of the plate
+	rebuildTectonicPlate(plateTileSets, percentTilesForShapeReseed, randStream);
+	// rebuild the plates from a random set of seed tiles inside of the plate
+	// to adjust the shape of plate borders
+	rebuildTectonicPlate(plateTileSets, percentTilesForBorderReseed, randStream);
 
 	//finally we're going to sort by plate size
 	plateTileSets.Sort([](const FGridTileSet& set1, const FGridTileSet& set2)->bool
 	{
 		return set1.containedTiles.Num() > set2.containedTiles.Num();
 	});
+}
+
+void UContinentGenerator::rebuildTectonicPlate(TArray<FGridTileSet>& plateTileSets,
+	const float& percentTilesForReseed, FRandomStream &randStream)
+{
+	GridTilePtrList gridTiles = gridGen->getTiles();
+	TArray<bool> usedTiles;
+	usedTiles.Init(true, gridTiles.Num());
+	for (FGridTileSet& tileSet : plateTileSets)
+	{
+		int32 numSubSeeds = FMath::RoundToInt(tileSet.containedTiles.Num() * percentTilesForReseed) + 1;
+		TArray<int32> subSeedNums;
+		for (int32 subseedNum = 0; subseedNum < numSubSeeds; ++subseedNum)
+		{
+			int32 newSubSeed = randStream.RandRange(0, tileSet.containedTiles.Num() - 1);
+			subSeedNums.Add(tileSet.containedTiles[newSubSeed]);
+		}
+		tileSet.boarderEdges.Empty();
+		tileSet.containedTiles.Empty();
+		for (const int32& subSeed : subSeedNums)
+		{
+			addTileToTileSet(tileSet, subSeed, usedTiles);
+		}
+	}
+	createVoronoiDiagramFromSeedSets(usedTiles, plateTileSets);
 }
 
 void UContinentGenerator::setUpPlateBoundaries()

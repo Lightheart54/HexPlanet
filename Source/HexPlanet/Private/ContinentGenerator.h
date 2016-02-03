@@ -51,6 +51,14 @@ public:
 		int32 numberOfSubPlateSeeds;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
 		int32 addSubPlatesAfterIteration;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+		float percentTilesForShapeReseed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+		float percentTilesForBorderReseed;
+
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates")
 		int32 tectonicPlateBoundarySeed;
 
@@ -99,6 +107,8 @@ public:
 	void installGrid(AHexSphere* myOwner, GridGenerator* gridGenerator);
 	
 	void buildTectonicPlates();
+
+
 	void setUpPlateBoundaries();
 	void calculateLandMasses();
 
@@ -113,5 +123,7 @@ public:
 protected:
 	AHexSphere* gridOwner;
 	GridGenerator* gridGen;
+	void rebuildTectonicPlate(TArray<FGridTileSet>& plateTileSets,
+		const float& percentTilesForReseed, FRandomStream &randStream);
 	void subdividePlate(const FGridTileSet &plateSet);
 };
