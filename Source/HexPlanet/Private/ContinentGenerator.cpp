@@ -4,7 +4,6 @@
 #include "ContinentGenerator.h"
 #include <cassert>
 
-
 // Sets default values for this component's properties
 UContinentGenerator::UContinentGenerator()
 {
@@ -132,11 +131,11 @@ void UContinentGenerator::rebuildTectonicPlate(TArray<FGridTileSet>& plateTileSe
 	for (FGridTileSet& tileSet : plateTileSets)
 	{
 		int32 numSubSeeds = FMath::RoundToInt(tileSet.containedTiles.Num() * percentTilesForReseed) + 1;
-		TArray<int32> subSeedNums;
+		TSet<int32> subSeedNums;
 		for (int32 subseedNum = 0; subseedNum < numSubSeeds; ++subseedNum)
 		{
 			int32 newSubSeed = randStream.RandRange(0, tileSet.containedTiles.Num() - 1);
-			subSeedNums.Add(tileSet.containedTiles[newSubSeed]);
+			subSeedNums.Add(tileSet.containedTiles.Array()[newSubSeed]);
 		}
 		tileSet.boarderEdges.Empty();
 		tileSet.containedTiles.Empty();
@@ -305,7 +304,7 @@ void UContinentGenerator::createVoronoiDiagramFromSeedSets(TArray<bool>& availab
 		tryAgain = false;
 		for (FGridTileSet& tileSet : seedSets)
 		{
-			TArray<int32> startBoarderEdges = tileSet.boarderEdges;
+			TSet<int32> startBoarderEdges = tileSet.boarderEdges;
 			for (const uint32& edgeNum : startBoarderEdges)
 			{
 				GridTilePtrList edgeTiles = gridGen->getEdge(edgeNum)->getTiles();
@@ -452,8 +451,8 @@ void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
 		int32 seedTile;
 		do
 		{
-			seedTile = FMath::RandRange(0, plateSet.containedTiles.Num() - 1);
-			seedTile = plateSet.containedTiles[seedTile];
+			seedTile = FMath::RandRange(0, plateSet.containedTiles.Num() - 1);			
+			seedTile = plateSet.containedTiles.Array()[seedTile];
 		} while (!addTileToTileSet(landTileSet, seedTile, tileAvailability));
 	}
 	for (int it = 0; it < numOceanSeeds; ++it)
@@ -462,7 +461,7 @@ void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
 		do
 		{
 			seedTile = FMath::RandRange(0, plateSet.containedTiles.Num() - 1);
-			seedTile = plateSet.containedTiles[seedTile];
+			seedTile = plateSet.containedTiles.Array()[seedTile];
 		} while (!addTileToTileSet(oceanTileSet, seedTile, tileAvailability));
 	}
 

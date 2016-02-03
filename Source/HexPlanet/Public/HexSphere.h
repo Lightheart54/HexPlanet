@@ -27,10 +27,10 @@ struct FGridTileSet
 	int32 setIndex;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TileSetStruct")
 	ETileSetTypeEnum setType;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TileSetStruct")
-	TArray<int32> containedTiles;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TileSetStruct")
-	TArray<int32> boarderEdges;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TileSetStruct")
+	TSet<int32> containedTiles;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TileSetStruct")
+	TSet<int32> boarderEdges;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TileSetStruct")
 	TArray<int32> setTags;
 };
