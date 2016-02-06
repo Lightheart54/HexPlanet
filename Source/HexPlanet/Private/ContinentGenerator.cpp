@@ -288,9 +288,20 @@ void UContinentGenerator::calculateLandMasses()
 	FMath::RandInit(landMassingSeed);
 	for (FGridTileSet& plateSet : plateTileSets)
 	{
-		subdividePlate(plateSet);
+		subdividePlateIntoTerrainSeed(plateSet);
 	}
 
+	TArray<bool> availableTiles;
+	availableTiles.Init(true, gridOwner->numTiles);
+	for (const int32& tileIndex : gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][int8(EPlateTypeEnum::PT_Land)].containedTiles)
+	{
+		availableTiles[tileIndex] = false;
+	}
+	for (const int32& tileIndex : gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][int8(EPlateTypeEnum::PT_Ocean)].containedTiles)
+	{
+		availableTiles[tileIndex] = false;
+	}
+	createVoronoiDiagramFromSeedSets(availableTiles, gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP]);
 }
 
 void UContinentGenerator::createVoronoiDiagramFromSeedSets(TArray<bool>& availableTiles, TArray<FGridTileSet>& seedSets,
@@ -376,7 +387,7 @@ void UContinentGenerator::addTileSetToTileSet(FGridTileSet& set1, const FGridTil
 	}
 }
 
-void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
+void UContinentGenerator::subdividePlateIntoTerrainSeed(const FGridTileSet &plateSet)
 {
 	int32 numPrimarySeeds = int32(plateSet.containedTiles.Num() * 0.02) * primaryPlateTypeDensity + minPrimaryPlateTypeSeeds;
 	int32 numSecondarySeeds = int32(plateSet.containedTiles.Num() * 0.0005) * secondaryPlateTypeDensity + minSecondaryPlateTypeSeeds;
@@ -393,14 +404,8 @@ void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
 		numLandSeeds = numSecondarySeeds;
 	}
 
-	FGridTileSet landTileSet;
-	landTileSet.setIndex = 0;
-	landTileSet.setType = ETileSetTypeEnum::ST_TERRAIN_GROUP;
-	landTileSet.setTags.Add(int8(EPlateTypeEnum::PT_Land));
-	FGridTileSet oceanTileSet;
-	oceanTileSet.setIndex = 1;
-	oceanTileSet.setType = ETileSetTypeEnum::ST_TERRAIN_GROUP;
-	oceanTileSet.setTags.Add(int8(EPlateTypeEnum::PT_Ocean));
+	FGridTileSet& landTileSet = gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][int8(EPlateTypeEnum::PT_Land)];
+	FGridTileSet& oceanTileSet = gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][int8(EPlateTypeEnum::PT_Ocean)];
 
 	GridTilePtrList gridTiles = gridGen->getTiles();
 	TArray<bool> tileAvailability;
@@ -426,7 +431,8 @@ void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
 			{
 				addTileToTileSet(landTileSet, borderTile.tileIndex, tileAvailability);
 			}
-			else if (chance <= secondRateAlongFault)
+			else if (plateSet.setTags[0] != int8(EPlateTypeEnum::PT_Ocean)
+				&& chance <= secondRateAlongFault)
 			{
 				addTileToTileSet(landTileSet, borderTile.tileIndex, tileAvailability);
 			}
@@ -438,7 +444,8 @@ void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
 			{
 				addTileToTileSet(oceanTileSet, borderTile.tileIndex, tileAvailability);
 			}
-			else if (chance <= secondRateAlongFault)
+			else if (plateSet.setTags[0] != int8(EPlateTypeEnum::PT_Land) &&
+				chance <= secondRateAlongFault)
 			{
 				addTileToTileSet(oceanTileSet, borderTile.tileIndex, tileAvailability);
 			}
@@ -464,12 +471,4 @@ void UContinentGenerator::subdividePlate(const FGridTileSet &plateSet)
 			seedTile = plateSet.containedTiles.Array()[seedTile];
 		} while (!addTileToTileSet(oceanTileSet, seedTile, tileAvailability));
 	}
-
-	TArray<FGridTileSet> terrianTypes;
-	terrianTypes.Add(landTileSet);
-	terrianTypes.Add(oceanTileSet);
-	createVoronoiDiagramFromSeedSets(tileAvailability, terrianTypes);
-
-	addTileSetToTileSet(gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][landTileSet.setIndex], terrianTypes[0]);
-	addTileSetToTileSet(gridOwner->GridTileSets[ETileSetTypeEnum::ST_TERRAIN_GROUP][oceanTileSet.setIndex], terrianTypes[1]);
 }

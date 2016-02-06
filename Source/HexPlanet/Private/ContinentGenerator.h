@@ -125,5 +125,5 @@ protected:
 	GridGenerator* gridGen;
 	void rebuildTectonicPlate(TArray<FGridTileSet>& plateTileSets,
 		const float& percentTilesForReseed, FRandomStream &randStream);
-	void subdividePlate(const FGridTileSet &plateSet);
+	void subdividePlateIntoTerrainSeed(const FGridTileSet &plateSet);
 };
