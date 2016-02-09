@@ -35,7 +35,7 @@ struct FRectGridLocation
 	/*! This Tile's Position(s) on the grid*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TArray<FRectGridIndex> gridPositions;
-}
+};
 
 /*!
 * \class USphereGrid
@@ -73,21 +73,35 @@ public:
 	
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	FRectGridLocation mapPosToTile(const FVector& positionOnSphere) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	int32 mapPosToTileIndex(const FVector& positionOnSphere) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	FVector getNodeLocationOnSphere(const int32& uLoc, const int32& vLoc) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
-	TArray<FRectGridLocation> getTileNeighbors(const FRectGridLocation gridTile) const;
+	TArray<FRectGridLocation> getLocationsForIndexes(const TArray<int32>& locationIndexs) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
-	TArray<FRectGridLocation> getTilesNStepsAway(const FRectGridLocation gridTile, const int32& numSteps) const;
-	
+	TArray<FRectGridLocation> getTileNeighbors(const FRectGridLocation& gridTile) const;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
-	TArray<FRectGridLocation> getStraightPathBetweenTiles(const FRectGridLocation startTile, const FRectGridLocation startTile) const;
+	TArray<int32> getTileNeighborIndexes(const FRectGridLocation& gridTile) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	TArray<FRectGridLocation> getTilesNStepsAway(const FRectGridLocation& gridTile, const int32& numSteps) const; 
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	TArray<int32> getTileIndexesNStepsAway(const FRectGridLocation& gridTile, const int32& numSteps) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	TArray<int32> getIndexNeighbors(const FRectGridIndex& gridIndex) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
-	FRectGridLocation getOffsetTile(const int32& startU, const int32& startV, const int32& offsetU, const int32& offsetV) const;
+	void decrementU(int32 &nextU, int32 &nextV) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	void incrementU(int32 &nextU, int32 &nextV) const;
+
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	TArray<FRectGridLocation> getStraightPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	TArray<int32> getStraightIndexPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const;
 
 	/*! The Raw Grid */
 	TArray<TArray<int32>> rectilinearGridM;
@@ -99,5 +113,9 @@ public:
 
 protected:
 
+	void addTileToNeighborList(int32 nextU, int32 nextV, TArray<int32> &tilesInRange, int32& nextTileIndex) const;
+
 	TArray<FVector> createBaseIcosahedron() const;
+	void expandTileSet(TSet<int32>& tileIndexSet) const;
+	FVector projectVectorOntoIcosahedronFace(const FVector& positionOnSphere, const FVector& refPoint, const FVector& uDir, const FVector& vDir) const;
 };

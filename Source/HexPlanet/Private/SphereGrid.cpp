@@ -31,12 +31,12 @@ void USphereGrid::BeginPlay()
 	gridFrequency = int32(FMath::Pow(3, numSubvisions));
 	numNodes = 12 + 30 * (gridFrequency - 1) + (gridFrequency > 2 ? 10 * gridFrequency*(gridFrequency + 1) : 0);
 	gridLocationsM.SetNumZeroed(numNodes);
-	gridPositions.SetNum(5*gridFrequency);
+	rectilinearGridM.SetNum(5*gridFrequency);
 	int32 tileNum = 0;
-	for (int32 uLoc = 0; uLoc < gridPositions.Num(); ++uLoc)
+	for (int32 uLoc = 0; uLoc < rectilinearGridM.Num(); ++uLoc)
 	{
 		int32 vSize = 2 * gridFrequency + 1 + (gridFrequency % 3 == 0 ? gridFrequency : 0);
-		gridPositions[uLoc].SetNumZeroed(vSize);
+		rectilinearGridM[uLoc].SetNumZeroed(vSize);
 		for (int32 vLoc = 0; vLoc < vSize; vLoc++)
 		{
 			//establish the mapping of duplicate points
@@ -47,75 +47,75 @@ void USphereGrid::BeginPlay()
 			{
 				if (uLoc % gridFrequency == 0)
 				{
-					gridPositions[uLoc][vLoc] = gridPositions[0][0];
+					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[0][0];
 				}
 				else if (uLoc % gridFrequency != 0)
 				{
-					gridPositions[uLoc][vLoc] = gridPositions[uLoc / gridFrequency][uLoc%gridFrequency];
+					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[uLoc / gridFrequency][uLoc%gridFrequency];
 				}
 			}
 			else if (vLoc == vSize-1 && uLoc != 0)
 			{
 				if (uLoc % gridFrequency == 0)
 				{
-					gridPositions[uLoc][vLoc] = gridPositions[0][vLoc];
+					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[0][vLoc];
 				}
 				else if (uLoc % gridFrequency != 0)
 				{
-					gridPositions[uLoc][vLoc] = gridPositions[uLoc - vLoc % gridFrequency][(vLoc/gridFrequency) * gridFrequency];
+					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[uLoc - vLoc % gridFrequency][(vLoc/gridFrequency) * gridFrequency];
 				}
 			}
 			else
 			{
-				gridPositions[uLoc][vLoc] = tileNum;
-				gridLocationsM[gridPositions[uLoc][vLoc]].tileIndex = tileNum;
+				rectilinearGridM[uLoc][vLoc] = tileNum;
+				gridLocationsM[rectilinearGridM[uLoc][vLoc]].tileIndex = tileNum;
 				++tileNum;
 			}
-			gridLocationsM[gridPositions[uLoc][vLoc]].gridPositions.Add(newIndex);
+			gridLocationsM[rectilinearGridM[uLoc][vLoc]].gridPositions.Add(newIndex);
 
 			//add this point as a reference point if it doesn't already exist
 			if (uLoc%3==0 && vLoc%3==0)
 			{
-				if (!gridReferencePointsM.Contains(gridPositions[uLoc][vLoc]))
+				if (!gridReferencePointsM.Contains(rectilinearGridM[uLoc][vLoc]))
 				{
 					//order needs to be 1,8,4,2,6,9,3,11,7,5,10,0
 					switch (gridReferencePointsM.Num())
 					{
 					case 0:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[1]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[1]);
 						break;
 					case 1:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[8]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[8]);
 						break;
 					case 2:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[4]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[4]);
 						break;
 					case 3:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[2]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[2]);
 						break;
 					case 4:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[6]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[6]);
 						break;
 					case 5:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[9]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[9]);
 						break;
 					case 6:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[3]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[3]);
 						break;
 					case 7:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[11]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[11]);
 						break;
 					case 8:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[7]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[7]);
 						break;
 					case 9:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[5]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[5]);
 						break;
 					case 10:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[10]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[10]);
 						break;
 					case 11:
-						gridReferencePointsM.Add(gridPositions[uLoc][vLoc], nodeLocations[0]);
+						gridReferencePointsM.Add(rectilinearGridM[uLoc][vLoc], nodeLocations[0]);
 						break;
 					}
 				}
@@ -123,7 +123,6 @@ void USphereGrid::BeginPlay()
 		}
 	}
 }
-
 
 TArray<FVector> USphereGrid::createBaseIcosahedron() const
 {
@@ -187,13 +186,6 @@ TArray<FVector> USphereGrid::createBaseIcosahedron() const
 	return nodeLocations;
 }
 
-FRectGridLocation USphereGrid::getOffsetTile(const int32& startU, const int32& startV, const int32& offsetU, const int32& offsetV) const
-{
-	//simple case first
-	int32 newU = startU + offsetU;
-	int32 newV = startV + offsetV;
-}
-
 // Called every frame
 void USphereGrid::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
 {
@@ -204,7 +196,122 @@ void USphereGrid::TickComponent( float DeltaTime, ELevelTick TickType, FActorCom
 
 FRectGridLocation USphereGrid::mapPosToTile(const FVector& positionOnSphere) const
 {
+	return gridLocationsM[mapPosToTileIndex(positionOnSphere)];
+}
 
+int32 USphereGrid::mapPosToTileIndex(const FVector& positionOnSphere) const
+{
+	//find the four closest reference points, this establishes the icsoahedron face we're on
+	TArray<int32> refenceIndexes;
+	gridReferencePointsM.GetKeys(refenceIndexes);
+	refenceIndexes.Sort([&](const int32& pos1, const int32& pos2)->bool
+	{
+		return FVector::Dist(positionOnSphere, gridReferencePointsM[pos1]) < FVector::Dist(positionOnSphere, gridReferencePointsM[pos2]);
+	});
+
+	TArray<int32> refPoints;
+	refPoints.Add(refenceIndexes[0]);
+	refPoints.Add(refenceIndexes[1]);
+	refPoints.Add(refenceIndexes[2]);
+	refPoints.Add(refenceIndexes[3]);
+
+	//look at the uPositions and establish the reference square
+	int32 uRef1 = std::numeric_limits<int32>::max();
+	int32 uRef2 = std::numeric_limits<int32>::max();
+	int32 vRef11 = std::numeric_limits<int32>::max();
+	int32 vRef12 = std::numeric_limits<int32>::max();
+	int32 vRef21 = std::numeric_limits<int32>::max();
+	int32 vRef22 = std::numeric_limits<int32>::max();
+	for (const int32& index : refPoints)
+	{
+		if (gridLocationsM[index].gridPositions.Num() == 0)
+		{
+			FRectGridIndex refIndex = gridLocationsM[index].gridPositions[0];
+			if (refIndex.uPos <= uRef1)
+			{
+				uRef1 = refIndex.uPos;
+				if (refIndex.vPos < vRef11)
+				{
+					vRef12 = vRef11;
+					vRef11 = refIndex.vPos;
+				}
+				else
+				{
+					vRef12 = refIndex.vPos;
+				}
+			}
+			else
+			{
+				uRef2 = refIndex.uPos;
+				if (refIndex.vPos < vRef21)
+				{
+					vRef22 = vRef21;
+					vRef21 = refIndex.vPos;
+				}
+				else
+				{
+					vRef22 = refIndex.vPos;
+				}
+			}
+
+		}
+	}
+	//finally switch them if uref1 == 0
+	if (uRef1 == 0)
+	{
+		int32 tmpVal;
+		tmpVal = uRef1;
+		uRef1 = uRef2;
+		uRef2 = tmpVal;
+		tmpVal = vRef11;
+		vRef11 = vRef21;
+		vRef21 = tmpVal;
+		tmpVal = vRef12;
+		vRef12 = vRef22;
+		vRef22 = tmpVal;
+	}
+	//we can now establish the rest based upon which vrefs have been set;
+	if (vRef12 == std::numeric_limits<int32>::max())
+	{
+		vRef12 = 3 * gridFrequency;
+	}
+	else if (vRef22 == std::numeric_limits<int32>::max())
+	{
+		vRef22 = vRef21;
+		vRef21 = 0;
+	}
+
+	//establish the uDir
+	FVector refPoint = gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
+
+	FVector uDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - refPoint;
+	uDir /= gridFrequency;
+
+	FVector vDir;
+
+	//if we're closer to u1v12 than u2v21 we're in the upper triangle, otherwise we're in the lower triangle
+	if (refPoints.Find(rectilinearGridM[uRef1][vRef12]) < refPoints.Find(rectilinearGridM[uRef2][vRef21]))
+	{
+		vDir = gridReferencePointsM[rectilinearGridM[uRef1][vRef12]] - gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
+	}
+	else
+	{
+		vDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - gridReferencePointsM[rectilinearGridM[uRef2][vRef21]];
+	}
+
+	//the local Vector
+	FVector projectedVector = projectVectorOntoIcosahedronFace(positionOnSphere, refPoint, uDir, vDir);
+	FVector localVector = projectedVector - refPoint;
+
+	//determine u
+	float uIncAprox = FVector::DotProduct(localVector, uDir);
+	int32 uInc = FMath::RoundToInt(uIncAprox);
+
+	FVector localV = localVector - uIncAprox*uDir;
+	float vIncAprox = FVector::DotProduct(localV, vDir);
+	int32 vInc = FMath::RoundToInt(vIncAprox);
+
+	return rectilinearGridM[uRef1 + uInc][vRef11 + uInc + vInc];
 }
 
 FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLoc) const
@@ -212,47 +319,51 @@ FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLo
 	//find the reference vectors
 	int32 uRef1 = (uLoc / gridFrequency)*gridFrequency;
 	int32 uRef2 = uRef1 + gridFrequency;
+
+	//make sure we're mapping to a real triangle
+	if (uRef1 % gridFrequency == 0
+		&& vLoc < gridFrequency)
+	{
+		uRef1 -= gridFrequency;
+		uRef2 -= gridFrequency;
+	}
 	//adjust for warp around
-	if (uRef2 >= 5*gridFrequency)
+	if (uRef2 >= 5 * gridFrequency)
 	{
 		uRef2 = gridFrequency;
 	}
-	//in the case of our key rows we actually want to reference the
-	//preceding urefLocation instead of the next one to make it match
-	//with how we're doing the vRef locations
-	if (uRef1%gridFrequency==0)
+	if (uRef2 < 0)
 	{
-		uRef2 = uRef1;
-		uRef1 -= gridFrequency;
-		if (uRef1 < 0)
-		{
-			uRef1 = 4 * gridFrequency;
-		}
+		uRef2 = 4 * gridFrequency;
 	}
-	int32 vRef2 = (vLoc / gridFrequency)*gridFrequency;
-	int32 vRef1 = (vLoc / gridFrequency)*gridFrequency+gridFrequency;
+
+	int32 vRef12 = (vLoc / gridFrequency)*gridFrequency;
+	int32 vRef11 = vRef12 + gridFrequency;
+
+	int32 vRef22 = ((vLoc / gridFrequency)+1)*gridFrequency;
+	int32 vRef21 = vRef22 + gridFrequency;
 
 	int32 localU = uLoc - uRef1;
-	int32 localV = vLoc - vRef2;
-	FVector refPoint = gridReferencePointsM[gridLocationsM[uRef1][vRef1]];
+	int32 localV = vLoc - localU==0?vRef11:vRef21;
+	FVector refPoint = gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
 
-	FVector uDir = gridReferencePointsM[gridLocationsM[uRef2][vRef2]] - refPoint;
+	FVector uDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - refPoint;
 	uDir /= gridFrequency;
 	FVector vDir;
 	if (localV >= localU)
 	{
 		//use the "upper vRef location
-		vDir = gridReferencePointsM[gridLocationsM[uRef1][vRef2]] - refPoint;
+		vDir = gridReferencePointsM[rectilinearGridM[uRef1][vRef12]] - gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
 	}
 	else
 	{
 		//use the lower vRef location
-		vDir = gridReferencePointsM[gridLocationsM[uRef2][vRef1]] - refPoint;
+		vDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - gridReferencePointsM[rectilinearGridM[uRef2][vRef21]];
 	}
 	vDir /= gridFrequency;
 
 	//position on icosahedron
-	FVector icosahedronPos = refPoint + localU*uDir + (localU - localV)*vDir;
+	FVector icosahedronPos = refPoint + localU*uDir + (localV - localU)*vDir;
 
 	FVector unitSphereVec;
 	float currentMag;
@@ -260,56 +371,183 @@ FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLo
 	return unitSphereVec;
 }
 
-TArray<FRectGridLocation> USphereGrid::getTileNeighbors(const FRectGridLocation& gridTile) const
+TArray<FRectGridLocation> USphereGrid::getLocationsForIndexes(const TArray<int32>& locationIndexs) const
 {
-	return getTilesNStepsAway(gridTile, 1);
+	TArray<FRectGridLocation> neighbors;
+	for (const int32& indexNeighbor : locationIndexs)
+	{
+		neighbors.Add(gridLocationsM[indexNeighbor]);
+	}
+	return neighbors;
 }
 
-TArray<FRectGridLocation> USphereGrid::getTilesNStepsAway(const FRectGridLocation& gridTile, const int32& numSteps) const
+void USphereGrid::addTileToNeighborList(int32 nextU, int32 nextV, TArray<int32> &tilesInRange, int32& nextTileIndex) const
 {
-	TArray<FRectGridLocation> tilesInRange;
-	//our Manhattan distance plane is u-v+w=0
-	int32 startU = gridPositions[0].uPos;
-	int32 startV = gridPositions[0].uPos;
+	int32 nextTile = rectilinearGridM[nextU][nextV];
+	int32 newLocation = 0;
+	if (!tilesInRange.Find(nextTile, newLocation))
+	{
+		newLocation = tilesInRange.Insert(nextTile, nextTileIndex);
+	}
+	nextTileIndex = newLocation;
+}
 
-	//do each side in turn
-	//u = numSteps
-	int32 offsetU = numSteps;
-	int32 offsetV = 0;
-	for (; offsetV < numSteps; ++offsetV)
+TArray<FRectGridLocation> USphereGrid::getTileNeighbors(const FRectGridLocation& gridTile) const
+{
+	TArray<int32> neighborList = getTileNeighborIndexes(gridTile);
+	return getLocationsForIndexes(neighborList);
+}
+
+TArray<int32> USphereGrid::getTileNeighborIndexes(const FRectGridLocation& gridTile) const
+{
+	TArray<int32> neighborList;
+	for (const FRectGridIndex& gridIndex : gridTile.gridPositions)
 	{
-		tilesInRange.AddUnique(getOffsetTile(startU, startV, offsetU, offsetV));
+		TArray<int32> tilesInRange = getIndexNeighbors(gridIndex);
+		//combine the tilesInRangeList with the neighborList such that the order is maintained
+		int32 nextLocation;
+		for (const int32& indexNeighbor : tilesInRange)
+		{
+			int32 newLoc;
+			if (neighborList.Find(indexNeighbor, newLoc))
+			{
+				nextLocation = newLoc;
+			}
+			else
+			{
+				neighborList.Insert(indexNeighbor, nextLocation);
+			}
+		}
 	}
-	//v = numSteps1
-	for (; offsetU > 0; --offsetU)
+	return neighborList;
+}
+
+TArray<int32> USphereGrid::getIndexNeighbors(const FRectGridIndex &gridIndex) const
+{
+	int32 nextU = gridIndex.uPos;
+	int32 nextV = gridIndex.vPos;
+	TArray<int32> tilesInRange;
+	//our Manhattan distance plane is u-v+w=0
+	//u1,v0
+	incrementU(nextU, nextV);
+
+	if (nextV >= 0)
 	{
-		tilesInRange.AddUnique(getOffsetTile(startU, startV, offsetU, offsetV));
+		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+
 	}
-	//w = numSteps1
-	for (; offsetV > 0; --offsetU, --offsetV)
+	//u1,v1
+	++nextV;
+	if (nextV >= 0 && nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(getOffsetTile(startU, startV, offsetU, offsetV));
+		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
 	}
-	//u = -numSteps1
-	for (; offsetV > -numSteps; --offsetV)
+	//u0,v1
+	decrementU(nextU, nextV);
+
+	if (nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(getOffsetTile(startU, startV, offsetU, offsetV));
+		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
 	}
-	//v = -numSteps
-	for (; offsetU < 0; ++offsetU)
+	//u-1,v0
+	decrementU(nextU, nextV);
+	--nextV;
+	if (nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(getOffsetTile(startU, startV, offsetU, offsetV));
+		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
 	}
-	//w = -numSteps
-	for (; offsetV < 0; ++offsetU, ++offsetV)
+	//u-1,v-1
+	--nextV;
+	if (nextV >= 0 && nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(getOffsetTile(startU, startV, offsetU, offsetV));
+		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+	}
+	//u0,v-1
+	incrementU(nextU, nextV);
+	if (nextV >= 0)
+	{
+		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
 	}
 	return tilesInRange;
 }
 
-TArray<FRectGridLocation> USphereGrid::getStraightPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& startTile) const
+void USphereGrid::decrementU(int32 &nextU, int32 &nextV) const
 {
+	--nextU;
+	if (nextU%gridFrequency == 0)
+	{
+		nextV += gridFrequency;
+	}
+	else if (nextU < 0)
+	{
+		nextU += gridFrequency * 5;
+	}
+}
 
+void USphereGrid::incrementU(int32 &nextU, int32 &nextV) const
+{
+	++nextU;
+	if (nextU%gridFrequency == 1)
+	{
+		nextV -= gridFrequency;
+	}
+	else if (nextU == gridFrequency * 5)
+	{
+		nextU = 0;
+	}
+}
+
+TArray<FRectGridLocation> USphereGrid::getTilesNStepsAway(const FRectGridLocation& gridTile, const int32& numSteps) const
+{
+	TArray<int32> tileIndexes = getTileIndexesNStepsAway(gridTile, numSteps);
+	return getLocationsForIndexes(tileIndexes);
+}
+
+TArray<int32> USphereGrid::getTileIndexesNStepsAway(const FRectGridLocation& gridTile, const int32& numSteps) const
+{
+	TSet<int32> tileIndexSet;
+	tileIndexSet.Add(gridTile.tileIndex);
+	for (int32 step = 0; step < numSteps; ++step)
+	{
+		expandTileSet(tileIndexSet);
+	}
+	return tileIndexSet.Array();
+}
+
+void USphereGrid::expandTileSet(TSet<int32>& tileIndexSet) const
+{
+	TSet<int32> expandedSet;
+	for (const int32& tileNum : tileIndexSet)
+	{
+		for (const FRectGridIndex& gridIndex : gridLocationsM[tileNum].gridPositions)
+		{
+			TSet<int32> indexSet(getIndexNeighbors(gridIndex));
+			expandedSet.Union(indexSet);
+		}
+	}
+	tileIndexSet = expandedSet;
+}
+
+FVector USphereGrid::projectVectorOntoIcosahedronFace(const FVector& positionOnSphere, const FVector& refPoint, const FVector& uDir, const FVector& vDir) const
+{
+	FVector planeVec = FVector::CrossProduct(uDir, vDir);
+	planeVec /= FVector::DotProduct(planeVec, planeVec);
+	float planeR = FVector::DotProduct(planeVec, refPoint);
+	if (planeR < 0)
+	{
+		planeVec *= -1;
+		planeR *= -1;
+	}
+	return planeR*positionOnSphere / FVector::DotProduct(planeVec, positionOnSphere);
+}
+
+TArray<FRectGridLocation> USphereGrid::getStraightPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const
+{
+	return getLocationsForIndexes(getStraightIndexPathBetweenTiles(startTile, endTile));
+}
+
+TArray<int32> USphereGrid::getStraightIndexPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const
+{
+	return TArray<int32>();
 }
 
