@@ -419,7 +419,7 @@ TArray<int32> USphereGrid::getTileNeighborIndexes(const FRectGridLocation& gridT
 			int32 newLoc;
 			if (neighborList.Find(indexNeighbor, newLoc))
 			{
-				nextLocation = newLoc;
+				nextLocation = newLoc+1;
 			}
 			else
 			{
