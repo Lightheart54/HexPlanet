@@ -17,11 +17,19 @@ class HEXPLANET_API UGridMesher : public UProceduralMeshComponent
 public:
 	UGridMesher();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid Properties",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GridProperties",
 		meta = (ClampMin = "0.1", UIMin = "0.1"))
 	float radius;
 
-	USphereGrid* myGrid;
+	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
+	bool renderNodes;
+	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
+	bool renderCorners;
+	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
+	int32 numberOfNodesToMesh;
+	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
+	ULineBatchComponent* debugLineOut;
 
+	USphereGrid* myGrid;
 	void rebuildBaseMeshFromGrid();
 };
