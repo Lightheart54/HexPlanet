@@ -64,12 +64,12 @@ public:
 	virtual void TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction ) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid Properties",
-		meta = (ClampMin = "0", UIMin = "0", ClampMax = "8", UIMax = "8"))
-		int32 numSubvisions;
+		meta = (ClampMin = "1", UIMin = "1", ClampMax = "17", UIMax = "17"))
+		int32 gridFrequency;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grid Properties")
 		int32 numNodes;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grid Properties")
-		int32 gridFrequency;
+		float icosahedronInteriorAngle;
 	
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	FRectGridLocation mapPosToTile(const FVector& positionOnSphere) const;
@@ -115,7 +115,7 @@ protected:
 
 	void addTileToNeighborList(int32 nextU, int32 nextV, TArray<int32> &tilesInRange, int32& nextTileIndex) const;
 
-	TArray<FVector> createBaseIcosahedron() const;
+	TArray<FVector> createBaseIcosahedron();
 	void expandTileSet(TSet<int32>& tileIndexSet) const;
 	FVector projectVectorOntoIcosahedronFace(const FVector& positionOnSphere, const FVector& refPoint, const FVector& uDir, const FVector& vDir) const;
 };

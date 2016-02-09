@@ -12,9 +12,9 @@ USphereGrid::USphereGrid()
 	// off to improve performance if you don't need them.
 	bWantsBeginPlay = true;
 	PrimaryComponentTick.bCanEverTick = false;
-	numSubvisions = 2;
-	gridFrequency = int32(FMath::Pow(3, numSubvisions));
-	numNodes = 12 + 30 * (gridFrequency - 1) + (gridFrequency > 2 ? 10 * gridFrequency*(gridFrequency + 1) : 0);
+	gridFrequency = 1;
+	numNodes = 2 + 10 * FMath::Pow(3,gridFrequency-1);
+	icosahedronInteriorAngle = 0;
 	// ...
 }
 
@@ -28,14 +28,13 @@ void USphereGrid::BeginPlay()
 	TArray<FVector> nodeLocations = createBaseIcosahedron();
 
 	// setup grid
-	gridFrequency = int32(FMath::Pow(3, numSubvisions));
-	numNodes = 12 + 30 * (gridFrequency - 1) + (gridFrequency > 2 ? 10 * gridFrequency*(gridFrequency + 1) : 0);
+	numNodes = 2 + 10 * FMath::Pow(3,gridFrequency-1);
 	gridLocationsM.SetNumZeroed(numNodes);
 	rectilinearGridM.SetNum(5*gridFrequency);
 	int32 tileNum = 0;
 	for (int32 uLoc = 0; uLoc < rectilinearGridM.Num(); ++uLoc)
 	{
-		int32 vSize = 2 * gridFrequency + 1 + (gridFrequency % 3 == 0 ? gridFrequency : 0);
+		int32 vSize = 2 * gridFrequency + 1 + (uLoc % gridFrequency == 0 ? gridFrequency : 0);
 		rectilinearGridM[uLoc].SetNumZeroed(vSize);
 		for (int32 vLoc = 0; vLoc < vSize; vLoc++)
 		{
@@ -74,7 +73,7 @@ void USphereGrid::BeginPlay()
 			gridLocationsM[rectilinearGridM[uLoc][vLoc]].gridPositions.Add(newIndex);
 
 			//add this point as a reference point if it doesn't already exist
-			if (uLoc%3==0 && vLoc%3==0)
+			if (uLoc%gridFrequency==0 && vLoc%gridFrequency ==0)
 			{
 				if (!gridReferencePointsM.Contains(rectilinearGridM[uLoc][vLoc]))
 				{
@@ -124,7 +123,7 @@ void USphereGrid::BeginPlay()
 	}
 }
 
-TArray<FVector> USphereGrid::createBaseIcosahedron() const
+TArray<FVector> USphereGrid::createBaseIcosahedron()
 {
 	float x = 1;
 	float z = (1 + FMath::Sqrt(5)) / 2.0;
@@ -183,6 +182,9 @@ TArray<FVector> USphereGrid::createBaseIcosahedron() const
 	nodeLocations[11][0] = -x;
 	nodeLocations[11][1] = -z;
 	nodeLocations[11][2] = 0;
+
+	icosahedronInteriorAngle = FMath::Acos(FVector::DotProduct(nodeLocations[0], nodeLocations[1]));
+
 	return nodeLocations;
 }
 
@@ -332,19 +334,25 @@ FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLo
 	{
 		uRef2 = gridFrequency;
 	}
-	if (uRef2 < 0)
+	if (uRef1 < 0)
 	{
-		uRef2 = 4 * gridFrequency;
+		uRef1 = 4 * gridFrequency;
 	}
 
-	int32 vRef12 = (vLoc / gridFrequency)*gridFrequency;
-	int32 vRef11 = vRef12 + gridFrequency;
 
-	int32 vRef22 = ((vLoc / gridFrequency)+1)*gridFrequency;
-	int32 vRef21 = vRef22 + gridFrequency;
+	int32 vRef11 = int32((vLoc / gridFrequency)*gridFrequency) + int32((uLoc==uRef1)?0:gridFrequency);
+	if (vLoc == rectilinearGridM[uLoc].Num()-1)
+	{
+		vRef11 -= gridFrequency;
+	}
+	int32 vRef12 = vRef11 + gridFrequency;
 
-	int32 localU = uLoc - uRef1;
-	int32 localV = vLoc - localU==0?vRef11:vRef21;
+	int32 vRef21 = vRef11 - gridFrequency;
+	int32 vRef22 = vRef12 - gridFrequency;
+
+
+	int32 localU = (uLoc==0 && vLoc<gridFrequency)? gridFrequency:uLoc - uRef1;
+	int32 localV = vLoc - int32(localU==0?vRef11:vRef21);
 	FVector refPoint = gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
 
 	FVector uDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - refPoint;
@@ -405,7 +413,7 @@ TArray<int32> USphereGrid::getTileNeighborIndexes(const FRectGridLocation& gridT
 	{
 		TArray<int32> tilesInRange = getIndexNeighbors(gridIndex);
 		//combine the tilesInRangeList with the neighborList such that the order is maintained
-		int32 nextLocation;
+		int32 nextLocation = 0;
 		for (const int32& indexNeighbor : tilesInRange)
 		{
 			int32 newLoc;
@@ -416,6 +424,7 @@ TArray<int32> USphereGrid::getTileNeighborIndexes(const FRectGridLocation& gridT
 			else
 			{
 				neighborList.Insert(indexNeighbor, nextLocation);
+				++nextLocation;
 			}
 		}
 	}
@@ -426,6 +435,7 @@ TArray<int32> USphereGrid::getIndexNeighbors(const FRectGridIndex &gridIndex) co
 {
 	int32 nextU = gridIndex.uPos;
 	int32 nextV = gridIndex.vPos;
+	int32 myIndex = rectilinearGridM[nextU][nextV];
 	TArray<int32> tilesInRange;
 	//our Manhattan distance plane is u-v+w=0
 	//u1,v0
@@ -433,41 +443,42 @@ TArray<int32> USphereGrid::getIndexNeighbors(const FRectGridIndex &gridIndex) co
 
 	if (nextV >= 0)
 	{
-		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
 
 	}
 	//u1,v1
 	++nextV;
 	if (nextV >= 0 && nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
 	}
 	//u0,v1
 	decrementU(nextU, nextV);
 
 	if (nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
 	}
 	//u-1,v0
 	decrementU(nextU, nextV);
 	--nextV;
 	if (nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
 	}
 	//u-1,v-1
 	--nextV;
 	if (nextV >= 0 && nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
 	}
 	//u0,v-1
 	incrementU(nextU, nextV);
 	if (nextV >= 0)
 	{
-		tilesInRange.AddUnique(rectilinearGridM[nextV][nextU]);
+		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
 	}
+	tilesInRange.Remove(myIndex);
 	return tilesInRange;
 }
 
@@ -478,7 +489,7 @@ void USphereGrid::decrementU(int32 &nextU, int32 &nextV) const
 	{
 		nextV += gridFrequency;
 	}
-	else if (nextU < 0)
+	if (nextU < 0)
 	{
 		nextU += gridFrequency * 5;
 	}
@@ -486,12 +497,13 @@ void USphereGrid::decrementU(int32 &nextU, int32 &nextV) const
 
 void USphereGrid::incrementU(int32 &nextU, int32 &nextV) const
 {
+	int32 oldPhase = FMath::CeilToInt(nextU*1.0 / gridFrequency);
 	++nextU;
-	if (nextU%gridFrequency == 1)
+	if (FMath::CeilToInt(nextU*1.0 / gridFrequency) > oldPhase)
 	{
 		nextV -= gridFrequency;
 	}
-	else if (nextU == gridFrequency * 5)
+	if (nextU == gridFrequency * 5)
 	{
 		nextU = 0;
 	}
@@ -548,6 +560,11 @@ TArray<FRectGridLocation> USphereGrid::getStraightPathBetweenTiles(const FRectGr
 
 TArray<int32> USphereGrid::getStraightIndexPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const
 {
+	//draw the great circle
+
+	//split the arc between the two points into sections length icosahedronInterriorAngle/gridFrequency
+
+	//at every set get the grid index
 	return TArray<int32>();
 }
 
