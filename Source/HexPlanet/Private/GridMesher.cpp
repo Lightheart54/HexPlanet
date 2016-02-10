@@ -12,6 +12,7 @@ UGridMesher::UGridMesher()
 	PrimaryComponentTick.bCanEverTick = false;
 	myGrid = nullptr;
 	radius = 200;
+	meshMaterial = nullptr;
 
 	renderNodes = false;
 	renderCorners = false;
@@ -32,7 +33,7 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 	{
 
 #ifdef WITH_EDITOR
-		int32 numCorners = 0;
+		int32 numCorners = 1;
 #endif
 
 		for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
@@ -48,7 +49,8 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 			TArray<FColor> VertexColors;
 			TArray<FProcMeshTangent> Tangents;
 
-			Normals.Add(myGrid->getNodeLocationOnSphere(gridLoc.gridPositions[0].uPos, gridLoc.gridPositions[0].vPos));
+			FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc.gridPositions[0].uPos, gridLoc.gridPositions[0].vPos);
+			Normals.Add(tilePos);
 			Vertices.Add(Normals[0]*radius);
 
 #ifdef WITH_EDITOR
@@ -62,7 +64,7 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 			Vertices.AddZeroed(locNeighbors.Num());
 			Triangles.AddZeroed(locNeighbors.Num() * 3);
 			Normals.AddZeroed(locNeighbors.Num());
-			VertexColors.Init( FColor::Blue, locNeighbors.Num() + 1);
+			Tangents.AddZeroed(locNeighbors.Num() + 1);
 
 			for (int32 cornerIndex = 0; cornerIndex < locNeighbors.Num(); ++cornerIndex)
 			{
@@ -85,9 +87,16 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 
 				Triangles[cornerIndex * 3 + 1] = cornerIndex + 1;
 				Triangles[cornerIndex * 3 + 2] = nextIndex + 1;
+				FVector tangentVec = FVector::CrossProduct(newCorner - tilePos, newCorner);
+				tangentVec /= FMath::Sqrt(FVector::DotProduct(tangentVec, tangentVec));
+				Tangents[cornerIndex + 1] = FProcMeshTangent(tangentVec, false);
 			}
+			FVector tangentVec = FVector::CrossProduct(tilePos - Normals[1], tilePos);
+			tangentVec /= FMath::Sqrt(FVector::DotProduct(tangentVec, tangentVec));
+			Tangents[0] = FProcMeshTangent(tangentVec,false);
 
 			CreateMeshSection(gridLoc.tileIndex, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, false);
+			SetMaterial(gridLoc.tileIndex,meshMaterial);
 
 #ifdef WITH_EDITOR
 			if (numberOfNodesToMesh > 0 && numCorners == numberOfNodesToMesh)

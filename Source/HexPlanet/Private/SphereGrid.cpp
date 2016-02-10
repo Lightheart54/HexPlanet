@@ -3,6 +3,7 @@
 #include "HexPlanet.h"
 #include "SphereGrid.h"
 #include <limits>
+#include <cassert>
 
 
 // Sets default values for this component's properties
@@ -409,25 +410,63 @@ TArray<FRectGridLocation> USphereGrid::getTileNeighbors(const FRectGridLocation&
 TArray<int32> USphereGrid::getTileNeighborIndexes(const FRectGridLocation& gridTile) const
 {
 	TArray<int32> neighborList;
+
 	for (const FRectGridIndex& gridIndex : gridTile.gridPositions)
 	{
 		TArray<int32> tilesInRange = getIndexNeighbors(gridIndex);
 		//combine the tilesInRangeList with the neighborList such that the order is maintained
-		int32 nextLocation = 0;
-		for (const int32& indexNeighbor : tilesInRange)
+		//start by finding a shared neighbor
+		int32 startLoc = 0;
+		int32 tIRIndex = 0;
+		int32 numCornersToTransfer = 5;
+		if (neighborList.Num()!=0)
 		{
-			int32 newLoc;
-			if (neighborList.Find(indexNeighbor, newLoc))
+			startLoc = std::numeric_limits<int32>::min();
+			for (; tIRIndex < tilesInRange.Num(); ++tIRIndex)
 			{
-				nextLocation = newLoc+1;
+				int32 tileIndex = tilesInRange[tIRIndex];
+				if (tileIndex != std::numeric_limits<int32>::min())
+				{
+					startLoc = neighborList.Find(tileIndex);
+					if (startLoc >= 0)
+					{
+						break;
+					}
+				}
 			}
-			else
+			++startLoc;
+			++tIRIndex;
+		}
+		else
+		{
+			neighborList.SetNumUninitialized(6);
+			for (int32 i = 0; i < 6; ++i)
 			{
-				neighborList.Insert(indexNeighbor, nextLocation);
-				++nextLocation;
+				neighborList[i] = std::numeric_limits<int32>::min();
+			}
+			numCornersToTransfer = 6;
+		}
+		for (int numCorners = 0; numCorners < numCornersToTransfer; ++numCorners, ++startLoc, ++tIRIndex)
+		{
+			if (tIRIndex == 6)
+			{
+				tIRIndex = 0;
+			}
+			if (startLoc == 6)
+			{
+				startLoc = 0;
+			}
+			if (tilesInRange[tIRIndex] != std::numeric_limits<int32>::min())
+			{
+				if (neighborList.Contains(tilesInRange[tIRIndex]))
+				{
+					continue;
+				}
+				neighborList[startLoc] = tilesInRange[tIRIndex];
 			}
 		}
 	}
+	neighborList.Remove(std::numeric_limits<int32>::min());
 	return neighborList;
 }
 
@@ -437,48 +476,76 @@ TArray<int32> USphereGrid::getIndexNeighbors(const FRectGridIndex &gridIndex) co
 	int32 nextV = gridIndex.vPos;
 	int32 myIndex = rectilinearGridM[nextU][nextV];
 	TArray<int32> tilesInRange;
+	tilesInRange.SetNumUninitialized(6);
+	for (int32 i = 0; i < 6; i++)
+	{
+		tilesInRange[i] = std::numeric_limits<int32>::min();
+	}
 	//our Manhattan distance plane is u-v+w=0
 	//u1,v0
 	incrementU(nextU, nextV);
 
 	if (nextV >= 0)
 	{
-		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
+		tilesInRange[0] = (rectilinearGridM[nextU][nextV]);
+		if (tilesInRange[0] == myIndex)
+		{
+			tilesInRange[0] = std::numeric_limits<int32>::min();
+		}
 
 	}
 	//u1,v1
 	++nextV;
 	if (nextV >= 0 && nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
+		tilesInRange[1] = (rectilinearGridM[nextU][nextV]);
+		if (tilesInRange[1] == myIndex)
+		{
+			tilesInRange[1] = std::numeric_limits<int32>::min();
+		}
 	}
 	//u0,v1
 	decrementU(nextU, nextV);
 
 	if (nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
+		tilesInRange[2] = (rectilinearGridM[nextU][nextV]);
+		if (tilesInRange[2] == myIndex)
+		{
+			tilesInRange[2] = std::numeric_limits<int32>::min();
+		}
 	}
 	//u-1,v0
 	decrementU(nextU, nextV);
 	--nextV;
 	if (nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
+		tilesInRange[3] = (rectilinearGridM[nextU][nextV]);
+		if (tilesInRange[3] == myIndex)
+		{
+			tilesInRange[3] = std::numeric_limits<int32>::min();
+		}
 	}
 	//u-1,v-1
 	--nextV;
 	if (nextV >= 0 && nextV < rectilinearGridM[nextU].Num())
 	{
-		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
+		tilesInRange[4] = (rectilinearGridM[nextU][nextV]);
+		if (tilesInRange[4] == myIndex)
+		{
+			tilesInRange[4] = std::numeric_limits<int32>::min();
+		}
 	}
 	//u0,v-1
 	incrementU(nextU, nextV);
 	if (nextV >= 0)
 	{
-		tilesInRange.Add(rectilinearGridM[nextU][nextV]);
+		tilesInRange[5] = (rectilinearGridM[nextU][nextV]);
+		if (tilesInRange[5] == myIndex)
+		{
+			tilesInRange[5] = std::numeric_limits<int32>::min();
+		}
 	}
-	tilesInRange.Remove(myIndex);
 	return tilesInRange;
 }
 
@@ -537,6 +604,7 @@ void USphereGrid::expandTileSet(TSet<int32>& tileIndexSet) const
 			expandedSet.Union(indexSet);
 		}
 	}
+	expandedSet.Remove(std::numeric_limits<int32>::min());
 	tileIndexSet = expandedSet;
 }
 

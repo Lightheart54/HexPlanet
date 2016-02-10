@@ -20,6 +20,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GridProperties",
 		meta = (ClampMin = "0.1", UIMin = "0.1"))
 	float radius;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GridProperties")
+	UMaterialInterface* meshMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	bool renderNodes;
