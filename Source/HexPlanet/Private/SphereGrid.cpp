@@ -29,7 +29,7 @@ void USphereGrid::BeginPlay()
 	TArray<FVector> nodeLocations = createBaseIcosahedron();
 
 	// setup grid
-	numNodes = 2 + 10 * FMath::Pow(3,gridFrequency-1);
+	numNodes = 2 + 10 * gridFrequency*gridFrequency;
 	gridLocationsM.SetNumZeroed(numNodes);
 	rectilinearGridM.SetNum(5*gridFrequency);
 	int32 tileNum = 0;
@@ -51,19 +51,24 @@ void USphereGrid::BeginPlay()
 				}
 				else if (uLoc % gridFrequency != 0)
 				{
-					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[uLoc / gridFrequency][uLoc%gridFrequency];
+					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[(uLoc / gridFrequency)*gridFrequency][gridFrequency-uLoc%gridFrequency];
 				}
 			}
-			else if (vLoc == vSize-1 && uLoc != 0)
+			else if (vLoc > 2*gridFrequency && uLoc != 0)
 			{
-				if (uLoc % gridFrequency == 0)
+				if (vLoc % gridFrequency == 0)
 				{
 					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[0][vLoc];
 				}
-				else if (uLoc % gridFrequency != 0)
+				else
 				{
-					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[uLoc - vLoc % gridFrequency][(vLoc/gridFrequency) * gridFrequency];
+					rectilinearGridM[uLoc][vLoc] = rectilinearGridM[uLoc - vLoc%gridFrequency][vLoc - vLoc%gridFrequency];
 				}
+			}
+			else if(uLoc/gridFrequency == 4 && uLoc%gridFrequency!=0 && vLoc == vSize-1)
+			{
+				//handles wrap around
+				rectilinearGridM[uLoc][vLoc] = rectilinearGridM[0][vLoc + gridFrequency - uLoc%gridFrequency];
 			}
 			else
 			{
