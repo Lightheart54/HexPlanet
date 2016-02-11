@@ -26,10 +26,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	bool renderNodes;
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
-	bool renderCorners;
-	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
-	int32 numberOfNodesToMesh;
-	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	ULineBatchComponent* debugLineOut;
 
 	USphereGrid* myGrid;

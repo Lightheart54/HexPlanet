@@ -15,9 +15,9 @@ UGridMesher::UGridMesher()
 	meshMaterial = nullptr;
 
 	renderNodes = false;
-	renderCorners = false;
+	//renderCorners = false;
 	debugLineOut = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugLineDrawer"));
-	numberOfNodesToMesh = -1;
+	//numberOfNodesToMesh = -1;
 }
 
 
@@ -25,89 +25,65 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 {
 	ClearAllMeshSections();
 	
-#ifdef WITH_EDITOR
 	debugLineOut->Flush();
-#endif
 
 	if (myGrid != nullptr)
 	{
 
-#ifdef WITH_EDITOR
-		int32 numCorners = 1;
-#endif
+		/*void CreateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices,
+		const TArray<int32>& Triangles, const TArray<FVector>& Normals,
+		const TArray<FVector2D>& UV0, const TArray<FColor>& VertexColors,
+		const TArray<FProcMeshTangent>& Tangents, bool bCreateCollision);*/
+		TArray<FVector> Vertices;
+		TArray<int32> Triangles;
+		TArray<FVector> Normals;
+		TArray<FVector2D> UV0;
+		TArray<FColor> VertexColors;
+		TArray<FProcMeshTangent> Tangents;
 
 		for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
 		{
-			/*void CreateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices,
-				const TArray<int32>& Triangles, const TArray<FVector>& Normals,
-				const TArray<FVector2D>& UV0, const TArray<FColor>& VertexColors,
-				const TArray<FProcMeshTangent>& Tangents, bool bCreateCollision);*/
-			TArray<FVector> Vertices;
-			TArray<int32> Triangles;
-			TArray<FVector> Normals;
-			TArray<FVector2D> UV0;
-			TArray<FColor> VertexColors;
-			TArray<FProcMeshTangent> Tangents;
-
 			FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc.gridPositions[0].uPos, gridLoc.gridPositions[0].vPos);
 			Normals.Add(tilePos);
-			Vertices.Add(Normals[0]*radius);
-
-#ifdef WITH_EDITOR
+			Vertices.Add(tilePos * radius);
 			if (renderNodes)
 			{
-				debugLineOut->DrawPoint(Vertices[0], FLinearColor::Blue, 8, 2);
+				debugLineOut->DrawPoint(tilePos * radius, FLinearColor::Blue, 8, 2);
 			}
-#endif
-
-			TArray<int32> locNeighbors = myGrid->getTileNeighborIndexes(gridLoc);
-			Vertices.AddZeroed(locNeighbors.Num());
-			Triangles.AddZeroed(locNeighbors.Num() * 3);
-			Normals.AddZeroed(locNeighbors.Num());
-			Tangents.AddZeroed(locNeighbors.Num() + 1);
-
-			for (int32 cornerIndex = 0; cornerIndex < locNeighbors.Num(); ++cornerIndex)
-			{
-				FVector currentPos = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[locNeighbors[cornerIndex]].gridPositions[0].uPos,
-																	myGrid->gridLocationsM[locNeighbors[cornerIndex]].gridPositions[0].vPos);
-
-				int32 nextIndex = cornerIndex < locNeighbors.Num() - 1 ? cornerIndex + 1 : 0;
-				FVector nextPos = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[locNeighbors[nextIndex]].gridPositions[0].uPos,
-					myGrid->gridLocationsM[locNeighbors[nextIndex]].gridPositions[0].vPos);
-				FVector newCorner = (Normals[0] + currentPos + nextPos)/3;
-				newCorner /= FMath::Sqrt(FVector::DotProduct(newCorner, newCorner));
-				Normals[cornerIndex + 1] = newCorner;
-				Vertices[cornerIndex + 1] = Normals[cornerIndex + 1] * radius;
-#ifdef WITH_EDITOR
-				if (renderCorners)
-				{
-					debugLineOut->DrawPoint(Vertices[cornerIndex + 1], FLinearColor::Red, 8, 2);
-				}
-#endif
-
-				Triangles[cornerIndex * 3 + 1] = cornerIndex + 1;
-				Triangles[cornerIndex * 3 + 2] = nextIndex + 1;
-				FVector tangentVec = FVector::CrossProduct(newCorner - tilePos, newCorner);
-				tangentVec /= FMath::Sqrt(FVector::DotProduct(tangentVec, tangentVec));
-				Tangents[cornerIndex + 1] = FProcMeshTangent(tangentVec, false);
-			}
-			FVector tangentVec = FVector::CrossProduct(tilePos - Normals[1], tilePos);
-			tangentVec /= FMath::Sqrt(FVector::DotProduct(tangentVec, tangentVec));
-			Tangents[0] = FProcMeshTangent(tangentVec,false);
-
-			CreateMeshSection(gridLoc.tileIndex, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, false);
-			SetMaterial(gridLoc.tileIndex,meshMaterial);
-
-#ifdef WITH_EDITOR
-			if (numberOfNodesToMesh > 0 && numCorners == numberOfNodesToMesh)
-			{
-				break;
-			}
-			else
-			{
-				numCorners++;
-			}
-#endif
 		}
+
+		for (int32 uLoc = 0; uLoc < myGrid->rectilinearGridM.Num(); ++ uLoc)
+		{
+			for (int32 vLoc = 0; vLoc <= myGrid->gridFrequency * 2;++vLoc)
+			{
+				if (vLoc != myGrid->gridFrequency * 2)
+				{
+					//upperTriangle
+					int32 vertU = uLoc;
+					int32 vertV = vLoc;
+					Triangles.Add(myGrid->rectilinearGridM[vertU][vertV]);
+					++vertV;
+					Triangles.Add(myGrid->rectilinearGridM[vertU][vertV]);
+					--vertV;
+					myGrid->decrementU(vertU,vertV);
+					Triangles.Add(myGrid->rectilinearGridM[vertU][vertV]);
+				}
+				if (vLoc != 0)
+				{
+					//lowerTriangle
+					int32 vertU = uLoc;
+					int32 vertV = vLoc;
+					Triangles.Add(myGrid->rectilinearGridM[vertU][vertV]);
+					myGrid->decrementU(vertU, vertV);
+					Triangles.Add(myGrid->rectilinearGridM[vertU][vertV]);
+					--vertV;
+					Triangles.Add(myGrid->rectilinearGridM[vertU][vertV]);
+				}
+			}
+		}
+		
+		CreateMeshSection(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, false);
+		SetMaterial(0, meshMaterial);
 	}
 }
+
