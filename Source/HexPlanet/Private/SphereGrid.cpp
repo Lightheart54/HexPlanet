@@ -202,6 +202,26 @@ void USphereGrid::TickComponent( float DeltaTime, ELevelTick TickType, FActorCom
 	// ...
 }
 
+#ifdef WITH_EDITOR
+void USphereGrid::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	//Get the name of the property that was changed  
+	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	// We test using GET_MEMBER_NAME_CHECKED so that if someone changes the property name  
+	// in the future this will fail to compile and we can update it.  
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(USphereGrid, gridFrequency)))
+	{
+		numNodes = 2 + 10 * gridFrequency*gridFrequency;
+	}
+
+
+
+	// Call the base class version  
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
 FRectGridLocation USphereGrid::mapPosToTile(const FVector& positionOnSphere) const
 {
 	return gridLocationsM[mapPosToTileIndex(positionOnSphere)];
@@ -329,7 +349,7 @@ FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLo
 	int32 uRef2 = uRef1 + gridFrequency;
 
 	//make sure we're mapping to a real triangle
-	if (uRef1 % gridFrequency == 0
+	if (uLoc % gridFrequency == 0
 		&& vLoc < gridFrequency)
 	{
 		uRef1 -= gridFrequency;
@@ -338,7 +358,7 @@ FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLo
 	//adjust for warp around
 	if (uRef2 >= 5 * gridFrequency)
 	{
-		uRef2 = gridFrequency;
+		uRef2 = 0;
 	}
 	if (uRef1 < 0)
 	{

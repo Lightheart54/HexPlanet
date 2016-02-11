@@ -56,7 +56,7 @@ AHexSphere::AHexSphere()
 
 #ifdef WITH_EDITOR
 	debugMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugMeshRoot"));
-	subdivisionPreviewMesh = CreateDefaultSubobject<ULineBatchComponent>(TEXT("SubdivisionPreviewGenerator"));
+	F = CreateDefaultSubobject<ULineBatchComponent>(TEXT("SubdivisionPreviewGenerator"));
 	debugMesh->AttachTo(RootComponent);
 	subdivisionPreviewMesh->AttachTo(RootComponent);
 	renderNodes = false;

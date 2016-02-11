@@ -64,13 +64,17 @@ public:
 	virtual void TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction ) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grid Properties",
-		meta = (ClampMin = "1", UIMin = "1", ClampMax = "17", UIMax = "17"))
+		meta = (ClampMin = "1", UIMin = "1", ClampMax = "1000", UIMax = "1000"))
 		int32 gridFrequency;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grid Properties")
 		int32 numNodes;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grid Properties")
 		float icosahedronInteriorAngle;
 	
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	FRectGridLocation mapPosToTile(const FVector& positionOnSphere) const;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
