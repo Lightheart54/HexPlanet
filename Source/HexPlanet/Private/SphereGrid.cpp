@@ -609,28 +609,42 @@ TArray<FRectGridLocation> USphereGrid::getTilesNStepsAway(const FRectGridLocatio
 
 TArray<int32> USphereGrid::getTileIndexesNStepsAway(const FRectGridLocation& gridTile, const int32& numSteps) const
 {
-	TSet<int32> tileIndexSet;
+	TArray<int32> tileIndexSet;
 	tileIndexSet.Add(gridTile.tileIndex);
+	TArray<bool> availableTiles;
+	availableTiles.SetNum(numNodes);
+	for (bool& tileAvail : availableTiles)
+	{
+		tileAvail = true;
+	}
+	availableTiles[gridTile.tileIndex] = false;
 	for (int32 step = 0; step < numSteps; ++step)
 	{
-		expandTileSet(tileIndexSet);
+		expandTileSet(tileIndexSet, availableTiles);
 	}
-	return tileIndexSet.Array();
+	return tileIndexSet;
 }
 
-void USphereGrid::expandTileSet(TSet<int32>& tileIndexSet) const
+void USphereGrid::expandTileSet(TArray<int32>& tileIndexSet, TArray<bool>& tileAvailability) const
 {
-	TSet<int32> expandedSet;
-	for (const int32& tileNum : tileIndexSet)
+	int32 startNumIndexes = tileIndexSet.Num();
+	for (int32 currentIndex = 0; currentIndex < startNumIndexes; ++currentIndex)
 	{
+		int32 tileNum = tileIndexSet[currentIndex];
 		for (const FRectGridIndex& gridIndex : gridLocationsM[tileNum].gridPositions)
 		{
-			TSet<int32> indexSet(getIndexNeighbors(gridIndex));
-			expandedSet.Union(indexSet);
+			TArray<int32> indexSet(getIndexNeighbors(gridIndex));
+			for (const int32& tileIndex : indexSet)
+			{
+				if (tileIndex != std::numeric_limits<int32>::min()
+					&& tileAvailability[tileIndex])
+				{
+					tileIndexSet.Add(tileIndex);
+					tileAvailability[tileIndex] = false;
+				}
+			}
 		}
 	}
-	expandedSet.Remove(std::numeric_limits<int32>::min());
-	tileIndexSet = expandedSet;
 }
 
 FVector USphereGrid::projectVectorOntoIcosahedronFace(const FVector& positionOnSphere, const FVector& refPoint, const FVector& uDir, const FVector& vDir) const

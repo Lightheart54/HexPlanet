@@ -11,16 +11,19 @@ AMapActor::AMapActor()
 	PrimaryActorTick.bCanEverTick = true;
 	gridMesher = CreateDefaultSubobject<UGridMesher>(TEXT("MapMesh"));
 	sphereGrid = CreateDefaultSubobject<USphereGrid>(TEXT("MapGrid"));
+	plateSimul = CreateDefaultSubobject<UTectonicPlateSimulator>(TEXT("PlateSimulator"));
 	RootComponent = gridMesher;
-
+	gridMesher->myGrid = sphereGrid;
+	plateSimul->myGrid = sphereGrid;
+	plateSimul->myMesher = gridMesher;
 }
 
 // Called when the game starts or when spawned
 void AMapActor::BeginPlay()
 {
 	Super::BeginPlay();
-	gridMesher->myGrid = sphereGrid;
 	gridMesher->rebuildBaseMeshFromGrid();
+	plateSimul->buildTectonicPlates();
 }
 
 // Called every frame

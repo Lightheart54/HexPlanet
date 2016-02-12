@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "GridMesher.h"
 #include "SphereGrid.h"
+#include "TectonicPlateSimulator.h"
 #include "MapActor.generated.h"
 
 UCLASS()
@@ -28,5 +29,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapRepresentation")
 		USphereGrid* sphereGrid;	
-	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapRepresentation")
+		UTectonicPlateSimulator* plateSimul;
 };

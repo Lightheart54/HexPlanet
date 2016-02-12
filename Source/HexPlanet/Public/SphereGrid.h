@@ -101,11 +101,12 @@ public:
 	void decrementU(int32 &nextU, int32 &nextV) const;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	void incrementU(int32 &nextU, int32 &nextV) const;
-
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	TArray<FRectGridLocation> getStraightPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	TArray<int32> getStraightIndexPathBetweenTiles(const FRectGridLocation& startTile, const FRectGridLocation& endTile) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	void expandTileSet(TArray<int32>& tileIndexSet, TArray<bool>& tileAvailability) const;
 
 	/*! The Raw Grid */
 	TArray<TArray<int32>> rectilinearGridM;
@@ -120,6 +121,5 @@ protected:
 	void addTileToNeighborList(int32 nextU, int32 nextV, TArray<int32> &tilesInRange, int32& nextTileIndex) const;
 
 	TArray<FVector> createBaseIcosahedron();
-	void expandTileSet(TSet<int32>& tileIndexSet) const;
 	FVector projectVectorOntoIcosahedronFace(const FVector& positionOnSphere, const FVector& refPoint, const FVector& uDir, const FVector& vDir) const;
 };
