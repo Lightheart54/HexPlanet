@@ -17,16 +17,22 @@ class HEXPLANET_API UGridMesher : public UProceduralMeshComponent
 public:
 	UGridMesher();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GridProperties",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MeshProperties",
 		meta = (ClampMin = "0.1", UIMin = "0.1"))
-	float radius;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GridProperties")
-	UMaterialInterface* meshMaterial;
+	float baseMeshRadius;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MeshProperties")
+	UMaterialInterface* baseMeshMaterial;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MeshProperties")
+	int32 numMeshes;
 
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	bool renderNodes;
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	ULineBatchComponent* debugLineOut;
+
+
+	UFUNCTION(BlueprintCallable, Category = "MeshProduction")
+	int32 buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors, UMaterialInterface* newMeshMaterial);
 
 	USphereGrid* myGrid;
 	void rebuildBaseMeshFromGrid();
