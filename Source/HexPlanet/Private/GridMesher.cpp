@@ -46,6 +46,7 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 			FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc.gridPositions[0].uPos, gridLoc.gridPositions[0].vPos);
 			Normals.Add(tilePos);
 			Vertices.Add(tilePos * radius);
+			VertexColors.Add(FColor::Blue);
 			if (renderNodes)
 			{
 				debugLineOut->DrawPoint(tilePos * radius, FLinearColor::Blue, 8, 2);
