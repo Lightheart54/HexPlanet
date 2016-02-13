@@ -20,6 +20,6 @@ public class HexPlanetTarget : TargetRules
 		ref List<string> OutExtraModuleNames
 		)
 	{
-		OutExtraModuleNames.AddRange( new string[] { "HexPlanet" } );
+		OutExtraModuleNames.AddRange( new string[] { "HexPlanet", "SimplexNoise" } );
 	}
 }
