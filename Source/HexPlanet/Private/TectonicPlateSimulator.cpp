@@ -2,6 +2,7 @@
 
 #include "HexPlanet.h"
 #include "TectonicPlateSimulator.h"
+#include "SimplexNoiseBPLibrary.h"
 
 
 // Sets default values for this component's properties
@@ -22,7 +23,13 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	percentTilesForBorderReseed = 0.75;
 	showPlateOverlay = false;
 	overlayMaterial = nullptr;
-
+	heightMapSeed = FMath::Rand();
+	numOctaves = 1;
+	initialHeightMapRoughness = 0.5;
+	elevationColorKey.Add(FColor::Black);
+	elevationColorKey.Add(FColor::Blue);
+	elevationColorKey.Add(FColor::Green);
+	elevationColorKey.Add(FColor::White);
 	// ...
 }
 
@@ -43,6 +50,46 @@ void UTectonicPlateSimulator::TickComponent( float DeltaTime, ELevelTick TickTyp
 	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
 
 	// ...
+}
+
+void UTectonicPlateSimulator::generateInitialHeightMap()
+{
+	//use 3d simplex noise to generate a continuous random starting height map
+	//for our sphere
+	currentHeightMap.Empty();
+	currentHeightMap.Init(0,myGrid->numNodes);
+	USimplexNoiseBPLibrary::setNoiseSeed(heightMapSeed);
+	float elevationStep = 4.0 / (elevationColorKey.Num());
+	TArray<FColor> indexColors;
+	indexColors.SetNumUninitialized(myGrid->numNodes);
+	for (int32 nodeIndex = 0; nodeIndex < myGrid->numNodes;++nodeIndex)
+	{
+		FVector nodeLocation = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[nodeIndex]);
+		float magReduction = 1;
+		for (int32 octave = 0; octave < numOctaves;++octave)
+		{
+			currentHeightMap[nodeIndex] += USimplexNoiseBPLibrary::SimplexNoise3D(nodeLocation.X, nodeLocation.Y, nodeLocation.Z)/magReduction;
+			nodeLocation *= 2;
+			magReduction *= 2;
+		}
+		int32 colorChoice = FMath::FloorToInt((currentHeightMap[nodeIndex]+2) / elevationStep);
+		if (colorChoice >= myGrid->numNodes)
+		{
+			colorChoice = myGrid->numNodes - 1;
+		}
+		else if (colorChoice < 0)
+		{
+			colorChoice = 0;
+		}
+		indexColors[nodeIndex] = elevationColorKey[colorChoice];
+	}
+
+	if (showBaseHeightMap)
+	{
+		TArray<float> overlayRadii;
+		overlayRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
+		myMesher->buildNewMesh(overlayRadii, indexColors, overlayMaterial);
+	}
 }
 
 void UTectonicPlateSimulator::buildTectonicPlates()

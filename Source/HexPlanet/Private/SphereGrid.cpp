@@ -342,7 +342,7 @@ int32 USphereGrid::mapPosToTileIndex(const FVector& positionOnSphere) const
 	return rectilinearGridM[uRef1 + uInc][vRef11 + uInc + vInc];
 }
 
-FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLoc) const
+FVector USphereGrid::getNodeLocationOnSphereUV(const int32& uLoc, const int32& vLoc) const
 {
 	//find the reference vectors
 	int32 uRef1 = (uLoc / gridFrequency)*gridFrequency;
@@ -403,6 +403,11 @@ FVector USphereGrid::getNodeLocationOnSphere(const int32& uLoc, const int32& vLo
 	float currentMag;
 	icosahedronPos.ToDirectionAndLength(unitSphereVec, currentMag);
 	return unitSphereVec;
+}
+
+FVector USphereGrid::getNodeLocationOnSphere(const FRectGridLocation& gridTile) const
+{
+	return getNodeLocationOnSphereUV(gridTile.gridPositions[0].uPos, gridTile.gridPositions[0].vPos);
 }
 
 TArray<FRectGridLocation> USphereGrid::getLocationsForIndexes(const TArray<int32>& locationIndexs) const

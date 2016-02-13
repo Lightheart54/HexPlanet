@@ -47,6 +47,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		UMaterialInterface* overlayMaterial;
 
+	void generateInitialHeightMap();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	TArray<float> currentHeightMap; 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	int32 heightMapSeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	int32 numOctaves;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		bool showBaseHeightMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		TArray<FColor> elevationColorKey;
+
 	void buildTectonicPlates();
 	TArray<TArray<int32>> currentPlateSets;
 

@@ -23,6 +23,7 @@ void AMapActor::BeginPlay()
 {
 	Super::BeginPlay();
 	gridMesher->rebuildBaseMeshFromGrid();
+	plateSimul->generateInitialHeightMap();
 	plateSimul->buildTectonicPlates();
 }
 

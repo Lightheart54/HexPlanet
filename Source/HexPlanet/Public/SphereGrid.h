@@ -81,7 +81,9 @@ public:
 	int32 mapPosToTileIndex(const FVector& positionOnSphere) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
-	FVector getNodeLocationOnSphere(const int32& uLoc, const int32& vLoc) const;
+	FVector getNodeLocationOnSphereUV(const int32& uLoc, const int32& vLoc) const;
+	UFUNCTION(BlueprintPure, Category = "Grid Properties")
+	FVector getNodeLocationOnSphere(const FRectGridLocation& gridTile) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	TArray<FRectGridLocation> getLocationsForIndexes(const TArray<int32>& locationIndexs) const;

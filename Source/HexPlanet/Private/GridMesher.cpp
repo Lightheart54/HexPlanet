@@ -36,7 +36,7 @@ int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<F
 
 	for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
 	{
-		FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc.gridPositions[0].uPos, gridLoc.gridPositions[0].vPos);
+		FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc);
 		Normals.Add(tilePos);
 		Vertices.Add(tilePos * vertexRadii[gridLoc.tileIndex]);
 	}
@@ -91,7 +91,7 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 		vertexColors.SetNumZeroed(myGrid->gridLocationsM.Num());
 		for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
 		{
-			FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc.gridPositions[0].uPos, gridLoc.gridPositions[0].vPos);
+			FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc);
 			vertexRadii[gridLoc.tileIndex] = baseMeshRadius;
 			vertexColors[gridLoc.tileIndex] = FColor::Blue;
 			if (renderNodes)
