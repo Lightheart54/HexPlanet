@@ -128,6 +128,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 
 void UTectonicPlateSimulator::buildTectonicPlates()
 {
+	TArray<TArray<int32>> currentPlateSets;
 	currentPlateSets.Empty();
 	TArray<bool> usedTiles;
 	FMath::RandInit(plateSeed);
@@ -143,6 +144,14 @@ void UTectonicPlateSimulator::buildTectonicPlates()
 	// rebuild the plates from a random set of seed tiles inside of the plate
 	// to adjust the shape of plate borders
 	rebuildTectonicPlate(currentPlateSets, percentTilesForBorderReseed);
+
+	currentPlates.Empty();
+	for (TArray<int32>& plateSet : currentPlateSets)
+	{
+		FTectonicPlate newPlate;
+		newPlate.ownedCrustCells = plateSet;
+		currentPlates.Add(newPlate);
+	}
 
 	if (showPlateOverlay)
 	{
@@ -249,14 +258,14 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 	TArray<float> vertexRadii;
 	vertexColors.SetNumZeroed(myGrid->numNodes);
 	vertexRadii.SetNumZeroed(myGrid->numNodes);
-	for (const TArray<int32> & plateSet : currentPlateSets)
+	for (const FTectonicPlate& tectonicPlate : currentPlates)
 	{
 		//make new color
 		uint8 rValue = FMath::RandRange(0.0, 255);
 		uint8 gValue = FMath::FRandRange(0.0, 255);
 		uint8 bValue = FMath::FRandRange(0.0, 255);
 		FColor plateColor(rValue, gValue, bValue);
-		for (const int32& nodeIndex : plateSet)
+		for (const int32& nodeIndex : tectonicPlate.ownedCrustCells)
 		{
 			vertexColors[nodeIndex] = plateColor;
 			vertexRadii[nodeIndex] = myMesher->baseMeshRadius;

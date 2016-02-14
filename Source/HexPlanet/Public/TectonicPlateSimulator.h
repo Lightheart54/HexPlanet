@@ -7,6 +7,42 @@
 #include "GridMesher.h"
 #include "TectonicPlateSimulator.generated.h"
 
+USTRUCT(BlueprintType)
+struct FCrustCellData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	FRectGridLocation gridLoc;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	float crustThickness;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	float crustArea;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	float crustDensity;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	int32 owningPlate;
+};
+
+USTRUCT(BlueprintType)
+struct FTectonicPlate
+{
+	GENERATED_USTRUCT_BODY()
+
+	//The indexes of the crust cells that this plate owns
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	TArray<int32> ownedCrustCells;
+	//velocities in spherical coordinates and about the axis through the plate center of mass
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	FVector currentVelocity;
+	//crust cell about which the plate is centered
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	FRectGridLocation centerOfMass;
+	
+	//the maximum arc distance on the plate from its center
+	//this is used to quickly determine which other plates it might overlap
+	float plateMaxRadius;
+};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class HEXPLANET_API UTectonicPlateSimulator : public UActorComponent
@@ -30,8 +66,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseMesh")
 		UMaterialInterface* overlayMaterial;
 
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void generateInitialHeightMap();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		TArray<float> currentHeightMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		int32 heightMapSeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		int32 numOctaves;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		bool showBaseHeightMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		TArray<FColor> elevationColorKey;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
+		float percentOcean;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		bool showInitialContinents;
+
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void buildTectonicPlates();
-	TArray<TArray<int32>> currentPlateSets;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		TArray<FTectonicPlate> currentPlates;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		TArray<FCrustCellData> crustCells;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		int32 plateSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
@@ -49,28 +107,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		bool showPlateOverlay;
 
-	void generateInitialHeightMap();
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		TArray<float> currentHeightMap; 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		int32 heightMapSeed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		int32 numOctaves;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		bool showBaseHeightMap;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		TArray<FColor> elevationColorKey;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
-		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
-		float percentOcean;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		bool showInitialContinents;
 
-
+protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
-
 	int32 getNextAvailableSeedTile(TArray<bool> &usedTiles, TArray<TArray<int32>> & plateSets);
-
 	void createVoronoiDiagramFromSeedSets(TArray<TArray<int32>>& seedSets, TArray<bool>& tileAvailability, const int32& maxNumIterations = -1);
 	void rebuildTectonicPlate(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed);
 	void meshTectonicPlateOverlay();
