@@ -227,8 +227,10 @@ FRectGridLocation USphereGrid::mapPosToTile(const FVector& positionOnSphere) con
 	return gridLocationsM[mapPosToTileIndex(positionOnSphere)];
 }
 
-int32 USphereGrid::mapPosToTileIndex(const FVector& positionOnSphere) const
+int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere) const
 {
+	//start by normalizing the position
+	positionOnSphere /= FMath::Sqrt(FVector::DotProduct(positionOnSphere, positionOnSphere));
 	//find the four closest reference points, this establishes the icsoahedron face we're on
 	TArray<int32> refenceIndexes;
 	gridReferencePointsM.GetKeys(refenceIndexes);
