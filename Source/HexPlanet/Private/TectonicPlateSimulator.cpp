@@ -24,8 +24,9 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	showPlateOverlay = false;
 	overlayMaterial = nullptr;
 	heightMapSeed = FMath::Rand();
-	numOctaves = 1;
-	initialHeightMapRoughness = 0.5;
+	numOctaves = 1; 
+	percentOcean = 60;
+	showInitialContinents = false;
 	elevationColorKey.Add(FColor::Black);
 	elevationColorKey.Add(FColor::Blue);
 	elevationColorKey.Add(FColor::Green);
@@ -57,7 +58,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	//use 3d simplex noise to generate a continuous random starting height map
 	//for our sphere
 	currentHeightMap.Empty();
-	currentHeightMap.Init(0,myGrid->numNodes);
+	currentHeightMap.SetNumZeroed(myGrid->numNodes);
 	USimplexNoiseBPLibrary::setNoiseSeed(heightMapSeed);
 	float elevationStep = 4.0 / (elevationColorKey.Num());
 	TArray<FColor> indexColors;
@@ -89,6 +90,39 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		TArray<float> overlayRadii;
 		overlayRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
 		myMesher->buildNewMesh(overlayRadii, indexColors, overlayMaterial);
+	}
+
+	//create a distribution of the height map in order to separate between oceanic crust and 
+	//continental crust
+	TArray<float> heightToSort(currentHeightMap);
+	heightToSort.Sort();
+	int32 targetIndex = FMath::FloorToInt(heightToSort.Num()*percentOcean / 100.0);
+	float minHeight = heightToSort[0];
+	float maxHeight = heightToSort.Last();
+	float baseContinentalHeight = heightToSort[targetIndex];
+	float oceanBaseHeight = 0.1;
+	float continentBaseHeight = 1.0;
+	TArray<FColor> continentKeyColor;
+	continentKeyColor.SetNumZeroed(myGrid->numNodes);
+	//normalize and separate into oceanic crust and continental crust
+	for (int32 nodeIndex = 0; nodeIndex < myGrid->numNodes; ++nodeIndex)
+	{
+		if (currentHeightMap[nodeIndex] >= baseContinentalHeight)
+		{
+			currentHeightMap[nodeIndex] = continentBaseHeight;
+			continentKeyColor[nodeIndex] = FColor::Green;
+		}
+		else
+		{
+			currentHeightMap[nodeIndex] = oceanBaseHeight;
+			continentKeyColor[nodeIndex] = FColor::Blue;
+		}
+	}
+	if (showInitialContinents)
+	{
+		TArray<float> overlayRadii;
+		overlayRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
+		myMesher->buildNewMesh(overlayRadii, continentKeyColor, overlayMaterial);
 	}
 }
 

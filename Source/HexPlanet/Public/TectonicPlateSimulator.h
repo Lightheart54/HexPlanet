@@ -27,7 +27,11 @@ public:
 		UGridMesher* myMesher;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseMesh")
 		USphereGrid* myGrid;
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseMesh")
+		UMaterialInterface* overlayMaterial;
+
+	void buildTectonicPlates();
+	TArray<TArray<int32>> currentPlateSets;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		int32 plateSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
@@ -36,31 +40,32 @@ public:
 		int32 numBaseSubplates;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		int32 addSubplatesAfterNSteps;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 		float percentTilesForShapeReseed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlates",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 		float percentTilesForBorderReseed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		bool showPlateOverlay;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
-		UMaterialInterface* overlayMaterial;
 
 	void generateInitialHeightMap();
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
-	TArray<float> currentHeightMap; 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
-	int32 heightMapSeed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
-	int32 numOctaves;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		TArray<float> currentHeightMap; 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		int32 heightMapSeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		int32 numOctaves;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
 		bool showBaseHeightMap;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
 		TArray<FColor> elevationColorKey;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
+		float percentOcean;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+		bool showInitialContinents;
 
-	void buildTectonicPlates();
-	TArray<TArray<int32>> currentPlateSets;
 
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
 
