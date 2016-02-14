@@ -14,6 +14,8 @@ struct FCrustCellData
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	FRectGridLocation gridLoc;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TectonicPlateSimulation")
+	float cellHeight;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	float crustThickness;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
@@ -68,8 +70,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void generateInitialHeightMap();
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		TArray<float> currentHeightMap;
+	UFUNCTION(BlueprintPure, Category = "TectonicPlateSimulation")
+	FCrustCellData createBaseCrustCell(const int32& cellIndex, const float& cellHeight) const;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		TArray<FCrustCellData> crustCells;		
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
 		int32 heightMapSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
@@ -81,6 +85,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 		float percentOcean;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
+		float percentContinentalCrust;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
 		bool showInitialContinents;
 
@@ -88,8 +95,6 @@ public:
 	void buildTectonicPlates();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		TArray<FTectonicPlate> currentPlates;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
-		TArray<FCrustCellData> crustCells;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		int32 plateSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
@@ -107,6 +112,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		bool showPlateOverlay;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		float lithosphereDensity; //kg/m^3
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		float oceanicCrustDensity; //kg/m^3
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		float continentalCrustDensity; //kg/m^3
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		float oceanicWaterDensity; //kg/m^3
 
 protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
