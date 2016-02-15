@@ -78,7 +78,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	FRectGridLocation mapPosToTile(const FVector& positionOnSphere) const;
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
-	int32 mapPosToTileIndex(FVector positionOnSphere) const;
+	int32 mapPosToTileIndex(FVector positionOnSphere, ULineBatchComponent* debugOut = nullptr, float debugRadius = 200.0) const;
 
 	UFUNCTION(BlueprintPure, Category = "Grid Properties")
 	FVector getNodeLocationOnSphereUV(const int32& uLoc, const int32& vLoc) const;

@@ -30,7 +30,9 @@ USTRUCT(BlueprintType)
 struct FTectonicPlate
 {
 	GENERATED_USTRUCT_BODY()
-
+	//The index of this plate
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	int32 plateIndex;
 	//The indexes of the crust cells that this plate owns
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	TArray<int32> ownedCrustCells;
@@ -39,11 +41,11 @@ struct FTectonicPlate
 	FVector currentVelocity;
 	//crust cell about which the plate is centered
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-	FRectGridLocation centerOfMass;
+	int32 centerOfMassIndex;
 	
 	//the maximum arc distance on the plate from its center
 	//this is used to quickly determine which other plates it might overlap
-	float plateMaxRadius;
+	float plateBoundingRadius;
 };
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -93,6 +95,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void buildTectonicPlates();
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	FTectonicPlate createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes) const;
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void updatePlateCenterOfMass(FTectonicPlate &newPlate) const;
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void updatePlateBoundingRadius(FTectonicPlate& newPlate) const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		TArray<FTectonicPlate> currentPlates;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
@@ -111,6 +120,10 @@ public:
 		float percentTilesForBorderReseed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		bool showPlateOverlay;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		bool stopAfterFirstPlate;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+		int32 plateToShowCenterOfMassDebugPoints;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 		float lithosphereDensity; //kg/m^3
@@ -125,6 +138,6 @@ protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
 	int32 getNextAvailableSeedTile(TArray<bool> &usedTiles, TArray<TArray<int32>> & plateSets);
 	void createVoronoiDiagramFromSeedSets(TArray<TArray<int32>>& seedSets, TArray<bool>& tileAvailability, const int32& maxNumIterations = -1);
-	void rebuildTectonicPlate(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed);
+	void rebuildTectonicPlates(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed);
 	void meshTectonicPlateOverlay();
 };

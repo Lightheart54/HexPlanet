@@ -22,6 +22,8 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	percentTilesForShapeReseed = 0.05;
 	percentTilesForBorderReseed = 0.75;
 	showPlateOverlay = false;
+	stopAfterFirstPlate = false; 
+	plateToShowCenterOfMassDebugPoints = -1;
 	overlayMaterial = nullptr;
 	heightMapSeed = FMath::Rand();
 	numOctaves = 1; 
@@ -109,19 +111,20 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	float continentalCrustFactor = 1.0;
 	TArray<FColor> continentKeyColor;
 	continentKeyColor.SetNumZeroed(myGrid->numNodes);
+	crustCells.SetNumZeroed(myGrid->numNodes);
 	//normalize and separate into oceanic crust and continental crust
 	for (int32 nodeIndex = 0; nodeIndex < myGrid->numNodes; ++nodeIndex)
 	{
 		if (initialHeightMap[nodeIndex] >= baseContinentalHeight)
 		{
-			initialHeightMap[nodeIndex] *= continentalCrustFactor/baseOceanDepth;
+			initialHeightMap[nodeIndex] *= continentalCrustFactor / baseOceanDepth;
 			if (initialHeightMap[nodeIndex] >= 1.0)
 			{
 				continentKeyColor[nodeIndex] = FColor::Green;
 			}
 			else
 			{
-				continentKeyColor[nodeIndex] = FColor(0,255,255);
+				continentKeyColor[nodeIndex] = FColor(0, 255, 255);
 			}
 		}
 		else
@@ -129,6 +132,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 			initialHeightMap[nodeIndex] *= oceanicCrustFactor / baseOceanDepth;
 			continentKeyColor[nodeIndex] = FColor::Blue;
 		}
+		crustCells[nodeIndex] = createBaseCrustCell(nodeIndex, initialHeightMap[nodeIndex]);
 	}
 	if (showInitialContinents)
 	{
@@ -179,17 +183,20 @@ void UTectonicPlateSimulator::buildTectonicPlates()
 
 	// rebuild the plates from a random set of seed tiles inside of the plate
 	// to adjust the overall shape of the plate
-	rebuildTectonicPlate(currentPlateSets, percentTilesForShapeReseed);
+	rebuildTectonicPlates(currentPlateSets, percentTilesForShapeReseed);
 	// rebuild the plates from a random set of seed tiles inside of the plate
 	// to adjust the shape of plate borders
-	rebuildTectonicPlate(currentPlateSets, percentTilesForBorderReseed);
+	rebuildTectonicPlates(currentPlateSets, percentTilesForBorderReseed);
 
 	currentPlates.Empty();
-	for (TArray<int32>& plateSet : currentPlateSets)
+	currentPlates.SetNumZeroed(currentPlateSets.Num());
+	for (int32 plateIndex = 0; plateIndex < currentPlateSets.Num();++plateIndex)
 	{
-		FTectonicPlate newPlate;
-		newPlate.ownedCrustCells = plateSet;
-		currentPlates.Add(newPlate);
+		currentPlates[plateIndex] = createTectonicPlate(plateIndex, currentPlateSets[plateIndex]);
+		if (stopAfterFirstPlate)
+		{
+			break;
+		}
 	}
 
 	if (showPlateOverlay)
@@ -268,7 +275,7 @@ void UTectonicPlateSimulator::createVoronoiDiagramFromSeedSets(TArray<TArray<int
 	}
 }
 
-void UTectonicPlateSimulator::rebuildTectonicPlate(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed)
+void UTectonicPlateSimulator::rebuildTectonicPlates(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed)
 {
 	TArray<bool> usedTiles;
 	usedTiles.Init(true, myGrid->numNodes);
@@ -309,7 +316,67 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 			vertexColors[nodeIndex] = plateColor;
 			vertexRadii[nodeIndex] = myMesher->baseMeshRadius;
 		}
+		myMesher->debugLineOut->DrawPoint(myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[tectonicPlate.centerOfMassIndex])
+			* myMesher->baseMeshRadius*1.1, plateColor, 10, 2);
+		if (stopAfterFirstPlate)
+		{
+			break;
+		}
 	}
 	myMesher->buildNewMesh(vertexRadii, vertexColors, overlayMaterial);
+}
+
+FTectonicPlate UTectonicPlateSimulator::createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes) const
+{
+	FTectonicPlate newPlate;
+	newPlate.plateIndex = plateIndex;
+	newPlate.ownedCrustCells = plateCellIndexes;
+	newPlate.currentVelocity = FVector(0, 0, 0);
+	updatePlateCenterOfMass(newPlate);
+	updatePlateBoundingRadius(newPlate);	
+	return newPlate;
+}
+
+void UTectonicPlateSimulator::updatePlateCenterOfMass(FTectonicPlate &newPlate) const
+{
+	if (newPlate.ownedCrustCells.Num()==0)
+	{
+		newPlate.centerOfMassIndex = -1;
+	}
+	else
+	{
+		FVector massMomentArm(0, 0, 0);
+		float totalMass = 0.0;
+		for (const int32& plateCell : newPlate.ownedCrustCells)
+		{
+			float cellMass = crustCells[plateCell].crustThickness*crustCells[plateCell].crustArea*crustCells[plateCell].crustDensity;
+			totalMass += cellMass;
+			massMomentArm += cellMass * myGrid->getNodeLocationOnSphere(crustCells[plateCell].gridLoc)
+				*(myMesher->baseMeshRadius + crustCells[plateCell].cellHeight - crustCells[plateCell].crustThickness / 2);
+		}
+		FVector centerOfMass = massMomentArm / totalMass;
+		if (showPlateOverlay && plateToShowCenterOfMassDebugPoints == newPlate.plateIndex)
+		{
+			myMesher->debugLineOut->DrawPoint(centerOfMass * 1.05*myMesher->baseMeshRadius / FMath::Sqrt(FVector::DotProduct(centerOfMass, centerOfMass)),
+				FLinearColor::Blue, 10, 2);
+			newPlate.centerOfMassIndex = myGrid->mapPosToTileIndex(centerOfMass, myMesher->debugLineOut, myMesher->baseMeshRadius);
+		}
+		else
+		{
+			newPlate.centerOfMassIndex = myGrid->mapPosToTileIndex(centerOfMass);
+		}
+	}
+}
+
+void UTectonicPlateSimulator::updatePlateBoundingRadius(FTectonicPlate& newPlate) const
+{
+	float boundingRadius = 0.0;
+	FVector plateCenterDir = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[newPlate.centerOfMassIndex]);
+	for (const int32& plateCell : newPlate.ownedCrustCells)
+	{
+		FVector cellCenter = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[plateCell]);
+		float cellArcDistance = FMath::Acos(FVector::DotProduct(plateCenterDir, cellCenter));
+		newPlate.plateBoundingRadius = FMath::Max(cellArcDistance, newPlate.plateBoundingRadius);
+	}
 }
 

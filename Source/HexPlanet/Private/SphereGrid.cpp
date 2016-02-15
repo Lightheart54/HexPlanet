@@ -227,23 +227,35 @@ FRectGridLocation USphereGrid::mapPosToTile(const FVector& positionOnSphere) con
 	return gridLocationsM[mapPosToTileIndex(positionOnSphere)];
 }
 
-int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere) const
+int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere, ULineBatchComponent* debugOut /*= nullptr*/, float debugRadius /*= 200.0*/) const
 {
 	//start by normalizing the position
 	positionOnSphere /= FMath::Sqrt(FVector::DotProduct(positionOnSphere, positionOnSphere));
-	//find the four closest reference points, this establishes the icsoahedron face we're on
+	//find the three closest reference points that aren't the duplicated points, this establishes the icsoahedron face we're on
 	TArray<int32> refenceIndexes;
 	gridReferencePointsM.GetKeys(refenceIndexes);
 	refenceIndexes.Sort([&](const int32& pos1, const int32& pos2)->bool
 	{
-		return FVector::Dist(positionOnSphere, gridReferencePointsM[pos1]) < FVector::Dist(positionOnSphere, gridReferencePointsM[pos2]);
+		if (pos1 == 0 || pos1 == gridFrequency*3)
+		{
+			return false;
+		}
+		else if (pos2 == 0 || pos2 == gridFrequency*3)
+		{
+			return true;
+		}
+		else
+		{
+			return FVector::DotProduct(positionOnSphere, gridReferencePointsM[pos1]) 
+					> FVector::DotProduct(positionOnSphere, gridReferencePointsM[pos2]);
+		}
 	});
 
 	TArray<int32> refPoints;
 	refPoints.Add(refenceIndexes[0]);
 	refPoints.Add(refenceIndexes[1]);
 	refPoints.Add(refenceIndexes[2]);
-	refPoints.Add(refenceIndexes[3]);
+
 
 	//look at the uPositions and establish the reference square
 	int32 uRef1 = std::numeric_limits<int32>::max();
@@ -252,13 +264,55 @@ int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere) const
 	int32 vRef12 = std::numeric_limits<int32>::max();
 	int32 vRef21 = std::numeric_limits<int32>::max();
 	int32 vRef22 = std::numeric_limits<int32>::max();
-	for (const int32& index : refPoints)
+	//if all of the refPoints VPositions are the same then we're effectively at one of the duplicate indexes
+	//take the closest one, use if as the URef1 VRef12 point, build from there
+	if (gridLocationsM[refPoints[0]].gridPositions[0].vPos == gridLocationsM[refPoints[1]].gridPositions[0].vPos
+		&& gridLocationsM[refPoints[1]].gridPositions[0].vPos == gridLocationsM[refPoints[2]].gridPositions[0].vPos)
 	{
-		if (gridLocationsM[index].gridPositions.Num() == 0)
+		FRectGridIndex refIndex1 = gridLocationsM[refPoints[0]].gridPositions[0];
+		uRef1 = refIndex1.uPos;
+		FRectGridIndex refIndex2 = gridLocationsM[refPoints[1]].gridPositions[0];
+		uRef2 = refIndex2.uPos;
+		if ((uRef1 > uRef2 && uRef1 != gridFrequency*4)
+			|| (uRef1 == 0 && uRef2 == gridFrequency*4))
+		{
+			uRef1 = refIndex2.uPos;
+			uRef2 = refIndex1.uPos;
+		}
+		//are we closer to the top index or the bottom index
+		if (refIndex1.vPos==gridFrequency)
+		{
+			//closer to bottom
+			vRef11 = gridFrequency;
+			vRef12 = 2 * gridFrequency;
+			vRef21 = 0;
+			vRef22 = gridFrequency;
+		}
+		else
+		{
+			//closer to top
+			vRef11 = 2 * gridFrequency;
+			vRef12 = 3 * gridFrequency;
+			vRef21 = gridFrequency;
+			vRef22 = 2 * gridFrequency;
+		}
+	}
+	else
+	{
+		for (const int32& index : refPoints)
 		{
 			FRectGridIndex refIndex = gridLocationsM[index].gridPositions[0];
 			if (refIndex.uPos <= uRef1)
 			{
+				if (uRef1 != refIndex.uPos && uRef1 != std::numeric_limits<int32>::max())
+				{
+					//we need to move the existing uRef1 stuff to uRef2
+					uRef2 = uRef1;
+					vRef21 = vRef11;
+					vRef22 = vRef12;
+					vRef11 = std::numeric_limits<int32>::max();
+					vRef12 = std::numeric_limits<int32>::max();
+				}
 				uRef1 = refIndex.uPos;
 				if (refIndex.vPos < vRef11)
 				{
@@ -283,65 +337,117 @@ int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere) const
 					vRef22 = refIndex.vPos;
 				}
 			}
-
+		}
+		//finally switch them if uref1 == 0
+		if (uRef1 == 0 && uRef2 == gridFrequency*4)
+		{
+			int32 tmpVal;
+			tmpVal = uRef1;
+			uRef1 = uRef2;
+			uRef2 = tmpVal;
+			tmpVal = vRef11;
+			vRef11 = vRef21;
+			vRef21 = tmpVal;
+			tmpVal = vRef12;
+			vRef12 = vRef22;
+			vRef22 = tmpVal;
+		}
+		//we can now establish the rest based upon which vrefs have been set;
+		if (vRef12 == std::numeric_limits<int32>::max())
+		{
+			vRef12 = 3 * gridFrequency;
+		}
+		else if (vRef22 == std::numeric_limits<int32>::max())
+		{
+			vRef22 = vRef21;
+			vRef21 = 0;
 		}
 	}
-	//finally switch them if uref1 == 0
-	if (uRef1 == 0)
+
+	if (debugOut != nullptr)
 	{
-		int32 tmpVal;
-		tmpVal = uRef1;
-		uRef1 = uRef2;
-		uRef2 = tmpVal;
-		tmpVal = vRef11;
-		vRef11 = vRef21;
-		vRef21 = tmpVal;
-		tmpVal = vRef12;
-		vRef12 = vRef22;
-		vRef22 = tmpVal;
-	}
-	//we can now establish the rest based upon which vrefs have been set;
-	if (vRef12 == std::numeric_limits<int32>::max())
-	{
-		vRef12 = 3 * gridFrequency;
-	}
-	else if (vRef22 == std::numeric_limits<int32>::max())
-	{
-		vRef22 = vRef21;
-		vRef21 = 0;
+		//draw the referencePoints for debugging
+		FVector ref11 = gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
+		debugOut->DrawPoint(ref11 * 1.1*debugRadius / FMath::Sqrt(FVector::DotProduct(ref11, ref11)),
+			FLinearColor::Red, 8, 2);
+		FVector ref12 = gridReferencePointsM[rectilinearGridM[uRef1][vRef12]];
+		debugOut->DrawPoint(ref12 * 1.1*debugRadius / FMath::Sqrt(FVector::DotProduct(ref12, ref12)),
+			FLinearColor::Green, 8, 2);
+		FVector ref21 = gridReferencePointsM[rectilinearGridM[uRef2][vRef21]];
+		debugOut->DrawPoint(ref21 * 1.1*debugRadius / FMath::Sqrt(FVector::DotProduct(ref21, ref21)),
+			FLinearColor::Green, 8, 2);
+		FVector ref22 = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]];
+		debugOut->DrawPoint(ref22 * 1.1*debugRadius / FMath::Sqrt(FVector::DotProduct(ref22, ref22)),
+			FLinearColor::Green, 8, 2);
 	}
 
 	//establish the uDir
 	FVector refPoint = gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
-
-	FVector uDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - refPoint;
-	uDir /= gridFrequency;
-
+	FVector uVec, vVec;
+	FVector uDir;
+	float uMag;
 	FVector vDir;
-
+	float vMag;
+	bool upperTriangle = true;
 	//if we're closer to u1v12 than u2v21 we're in the upper triangle, otherwise we're in the lower triangle
-	if (refPoints.Find(rectilinearGridM[uRef1][vRef12]) < refPoints.Find(rectilinearGridM[uRef2][vRef21]))
+	if (FVector::DotProduct(positionOnSphere, gridReferencePointsM[rectilinearGridM[uRef1][vRef12]]) >
+		FVector::DotProduct(positionOnSphere, gridReferencePointsM[rectilinearGridM[uRef2][vRef21]]))
 	{
-		vDir = gridReferencePointsM[rectilinearGridM[uRef1][vRef12]] - gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
+
+		uVec = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - gridReferencePointsM[rectilinearGridM[uRef1][vRef12]];
+		vVec = gridReferencePointsM[rectilinearGridM[uRef1][vRef12]] - gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
 	}
 	else
 	{
-		vDir = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - gridReferencePointsM[rectilinearGridM[uRef2][vRef21]];
+		upperTriangle = false;
+		uVec = gridReferencePointsM[rectilinearGridM[uRef2][vRef21]] - gridReferencePointsM[rectilinearGridM[uRef1][vRef11]];
+		vVec = gridReferencePointsM[rectilinearGridM[uRef2][vRef22]] - gridReferencePointsM[rectilinearGridM[uRef2][vRef21]];
+		
 	}
+	uVec.ToDirectionAndLength(uDir, uMag);
+	uMag /= gridFrequency;
+	vVec.ToDirectionAndLength(vDir, vMag);
+	vMag /= gridFrequency;
 
 	//the local Vector
 	FVector projectedVector = projectVectorOntoIcosahedronFace(positionOnSphere, refPoint, uDir, vDir);
+	if (debugOut != nullptr)
+	{
+		//draw the referencePoints for debugging
+		debugOut->DrawPoint(projectedVector * 1.1*debugRadius / FMath::Sqrt(FVector::DotProduct(projectedVector, projectedVector)),
+			FLinearColor::Gray, 8, 2);
+		for (int32 gridDebugUPos = 0; gridDebugUPos <= gridFrequency; ++gridDebugUPos)
+		{
+			int32 startPos = upperTriangle ? gridDebugUPos : 0;
+			int32 endPos = upperTriangle ? gridFrequency : gridDebugUPos;
+			for (int32 gridDebugVPos = startPos; gridDebugVPos < endPos; ++gridDebugVPos)
+			{
+				FVector gridPoint = refPoint + gridDebugUPos*uDir*uMag + gridDebugVPos*vDir*vMag;
+				debugOut->DrawPoint(gridPoint * 1.1*debugRadius / FMath::Sqrt(FVector::DotProduct(gridPoint, gridPoint)),
+					FLinearColor::White, 6, 2);
+			}
+		}
+	}
 	FVector localVector = projectedVector - refPoint;
 
+	//Cramer's rule for system of equations for project onto non orthogonal basis
+	float uDotV = FVector::DotProduct(uDir, vDir);
+	float divisor = 1 - FMath::Pow(uDotV, 2);
+	float lVDotU = FVector::DotProduct(localVector, uDir);
+	float lVDotV = FVector::DotProduct(localVector, vDir);
+
 	//determine u
-	float uIncAprox = FVector::DotProduct(localVector, uDir);
-	int32 uInc = FMath::RoundToInt(uIncAprox);
-
-	FVector localV = localVector - uIncAprox*uDir;
-	float vIncAprox = FVector::DotProduct(localV, vDir);
-	int32 vInc = FMath::RoundToInt(vIncAprox);
-
-	return rectilinearGridM[uRef1 + uInc][vRef11 + uInc + vInc];
+	float uIncAprox = (lVDotU-uDotV*lVDotV) / divisor;
+	int32 uInc = FMath::RoundToInt(uIncAprox / uMag);
+	//determine v
+	float vIncAprox = (lVDotV - uDotV*lVDotU) / divisor;
+	int32 vInc = FMath::RoundToInt(vIncAprox/vMag);
+	//adjust for the offset of the u1 location
+	if (uInc > 0)
+	{
+		vInc -= gridFrequency;
+	}
+	return rectilinearGridM[uRef1 + uInc][vRef11 + vInc];
 }
 
 FVector USphereGrid::getNodeLocationOnSphereUV(const int32& uLoc, const int32& vLoc) const
