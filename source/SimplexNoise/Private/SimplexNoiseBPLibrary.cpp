@@ -37,6 +37,7 @@ void USimplexNoiseBPLibrary::setNoiseSeed(const int32& newSeed)
 {
 	TArray<bool> availableSeeds;
 	availableSeeds.Init(true, 256);
+	int32 currentSeed = FMath::GetRandSeed();
 	FMath::RandInit(newSeed);
 	for (uint16 it = 0; it < 256;++it)
 	{
@@ -48,6 +49,7 @@ void USimplexNoiseBPLibrary::setNoiseSeed(const int32& newSeed)
 		USimplexNoiseBPLibrary::perm[it] = (unsigned char)nextNum;
 		USimplexNoiseBPLibrary::perm[it+256] = (unsigned char)nextNum;
 	}
+	FMath::RandInit(currentSeed);
 }
 
 unsigned char USimplexNoiseBPLibrary::perm[512] = { 151,160,137,91,90,15,
