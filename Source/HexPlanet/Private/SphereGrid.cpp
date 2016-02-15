@@ -273,7 +273,7 @@ int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere, ULineBatchCompone
 		uRef1 = refIndex1.uPos;
 		FRectGridIndex refIndex2 = gridLocationsM[refPoints[1]].gridPositions[0];
 		uRef2 = refIndex2.uPos;
-		if ((uRef1 > uRef2 && uRef1 != gridFrequency*4)
+		if ((uRef1 > uRef2 && !(uRef1 == gridFrequency*4 && uRef2 == 0))
 			|| (uRef1 == 0 && uRef2 == gridFrequency*4))
 		{
 			uRef1 = refIndex2.uPos;
