@@ -320,10 +320,10 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 		uint8 gValue = FMath::FRandRange(0.0, 255);
 		uint8 bValue = FMath::FRandRange(0.0, 255);
 		FColor plateColor(rValue, gValue, bValue);
-		for (const FCrustCellData& nodeIndex : tectonicPlate.ownedCrustCells)
+		for (const int32& nodeIndex : tectonicPlate.ownedCrustCells)
 		{
-			vertexColors[nodeIndex.gridLoc.tileIndex] = plateColor;
-			vertexRadii[nodeIndex.gridLoc.tileIndex] = myMesher->baseMeshRadius;
+			vertexColors[nodeIndex] = plateColor;
+			vertexRadii[nodeIndex] = myMesher->baseMeshRadius;
 		}
 		myMesher->debugLineOut->DrawPoint(myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[tectonicPlate.centerOfMassIndex])
 			* myMesher->baseMeshRadius*1.1, plateColor, 10, 2);
@@ -363,7 +363,7 @@ void UTectonicPlateSimulator::updatePlateCenterOfMass(FTectonicPlate &newPlate) 
 		float totalMass = 0.0;
 		for (const int32& plateCellIndex : newPlate.ownedCrustCells)
 		{
-			FCrustCellData& plateCell = crustCells[plateCellIndex];
+			const FCrustCellData& plateCell = crustCells[plateCellIndex];
 			float cellMass = plateCell.crustThickness*plateCell.crustArea*plateCell.crustDensity;
 			totalMass += cellMass;
 			massMomentArm += cellMass * myGrid->getNodeLocationOnSphere(plateCell.gridLoc)
@@ -390,7 +390,7 @@ void UTectonicPlateSimulator::updatePlateBoundingRadius(FTectonicPlate& newPlate
 	FVector plateCenterDir = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[newPlate.centerOfMassIndex]);
 	for (const int32& plateCellIndex : newPlate.ownedCrustCells)
 	{
-		FCrustCellData& plateCell = crustCells[plateCellIndex];
+		const FCrustCellData& plateCell = crustCells[plateCellIndex];
 		FVector cellCenter = myGrid->getNodeLocationOnSphere(plateCell.gridLoc);
 		float cellArcDistance = FMath::Acos(FVector::DotProduct(plateCenterDir, cellCenter));
 		newPlate.plateBoundingRadius = FMath::Max(cellArcDistance, newPlate.plateBoundingRadius);
@@ -597,5 +597,6 @@ bool UTectonicPlateSimulator::executeTimeStep()
 			}
 		}
 	}
+	return true;
 }
 

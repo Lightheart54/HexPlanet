@@ -25,7 +25,7 @@ struct FCrustCellData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	int32 owningPlate;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-	int32 cellAge;
+	int32 cellTimeStamp;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	FVector2D cellVelocity;
 };
@@ -93,6 +93,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 		float percentContinentalCrust;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "InitialHeightMap")
+		float baseContinentalHeight;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay , Category = "InitialHeightMap")
 		bool showInitialContinents;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "InitialHeightMap")
