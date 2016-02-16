@@ -21,7 +21,7 @@ struct FCrustCellData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	float crustArea;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-	float crustDensity;
+	float crustDensity; //Gg/m^3
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	int32 owningPlate;
 };
@@ -35,7 +35,7 @@ struct FTectonicPlate
 	int32 plateIndex;
 	//The indexes of the crust cells that this plate owns
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-	TArray<int32> ownedCrustCells;
+	TArray<FCrustCellData> ownedCrustCells;
 	//velocities in spherical coordinates and about the axis through the plate center of mass
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	FVector currentVelocity;
@@ -80,23 +80,23 @@ public:
 		int32 heightMapSeed;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
 		int32 numOctaves;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		bool showBaseHeightMap;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
-		TArray<FColor> elevationColorKey;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 		float percentOcean;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 		float percentContinentalCrust;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay , Category = "InitialHeightMap")
 		bool showInitialContinents;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "InitialHeightMap")
+		bool showBaseHeightMap;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "InitialHeightMap")
+		TArray<FColor> elevationColorKey;
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void buildTectonicPlates();
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
-	FTectonicPlate createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes) const;
+	FTectonicPlate createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes);
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updatePlateCenterOfMass(FTectonicPlate &newPlate) const;
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
@@ -112,27 +112,44 @@ public:
 		int32 numBaseSubplates;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		int32 addSubplatesAfterNSteps;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateGeneration",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 		float percentTilesForShapeReseed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateGeneration",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 		float percentTilesForBorderReseed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateGeneration")
 		bool showPlateOverlay;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateGeneration")
 		bool stopAfterFirstPlate;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateGeneration")
 		int32 plateToShowCenterOfMassDebugPoints;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateSimulation")
+		float lithosphereDensity; //Gg/m^3
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateSimulation")
+		float oceanicCrustDensity; //Gg/m^3
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateSimulation")
+		float continentalCrustDensity; //Gg/m^3
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "TectonicPlateSimulation")
+		float oceanicWaterDensity; //Gg/m^3
+
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void initializePlateDirections();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-		float lithosphereDensity; //kg/m^3
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-		float oceanicCrustDensity; //kg/m^3
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-		float continentalCrustDensity; //kg/m^3
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-		float oceanicWaterDensity; //kg/m^3
+	int32 plateDirectionSeed;
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void erodeCell(FCrustCellData& targetCell);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0",
+			ToolTip = "The maximum amount of material that can be removed from a cell as a percentage of sea level"))
+	float maxErrosionAmount;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TectonicPlateSimulation",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0",
+			ToolTip = "The height at which errosion is cut off as a percentage of sea level"))
+	float errosionHeightCutoff;
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void updateCrustCellHeight(FCrustCellData& crustCell);
 
 protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);

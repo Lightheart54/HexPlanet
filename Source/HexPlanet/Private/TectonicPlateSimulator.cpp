@@ -4,6 +4,7 @@
 #include "TectonicPlateSimulator.h"
 #include "SimplexNoiseBPLibrary.h"
 
+static const float SEA_LEVEL = 1.0;
 
 // Sets default values for this component's properties
 UTectonicPlateSimulator::UTectonicPlateSimulator()
@@ -30,11 +31,14 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	percentOcean = 60;
 	percentContinentalCrust = 65;
 	showInitialContinents = false;
+	plateDirectionSeed = FMath::Rand();
+	maxErrosionAmount = 0.1;
+	errosionHeightCutoff = 95;
 
-	lithosphereDensity = 3400;
-	oceanicCrustDensity = 3000;
-	continentalCrustDensity = 2600;
-	oceanicWaterDensity = 1025;
+	lithosphereDensity = 3.4;
+	oceanicCrustDensity = 3.0;
+	continentalCrustDensity = 2.6;
+	oceanicWaterDensity = 1.025;
 	elevationColorKey.Add(FColor::Black);
 	elevationColorKey.Add(FColor::Blue);
 	elevationColorKey.Add(FColor::Green);
@@ -118,7 +122,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		if (initialHeightMap[nodeIndex] >= baseContinentalHeight)
 		{
 			initialHeightMap[nodeIndex] *= continentalCrustFactor / baseOceanDepth;
-			if (initialHeightMap[nodeIndex] >= 1.0)
+			if (initialHeightMap[nodeIndex] >= SEA_LEVEL)
 			{
 				continentKeyColor[nodeIndex] = FColor::Green;
 			}
@@ -156,7 +160,7 @@ FCrustCellData UTectonicPlateSimulator::createBaseCrustCell(const int32& cellInd
 
 	if (cellHeight < 1.0)
 	{
-		float lowerThickness = ((1 - cellHeight)*oceanicWaterDensity + cellHeight*oceanicCrustDensity) / (lithosphereDensity - oceanicCrustDensity);
+		float lowerThickness = ((SEA_LEVEL - cellHeight)*oceanicWaterDensity + cellHeight*oceanicCrustDensity) / (lithosphereDensity - oceanicCrustDensity);
 		newCellData.crustThickness = cellHeight + lowerThickness;
 		newCellData.crustDensity = oceanicCrustDensity;
 	}
@@ -311,10 +315,10 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 		uint8 gValue = FMath::FRandRange(0.0, 255);
 		uint8 bValue = FMath::FRandRange(0.0, 255);
 		FColor plateColor(rValue, gValue, bValue);
-		for (const int32& nodeIndex : tectonicPlate.ownedCrustCells)
+		for (const FCrustCellData& nodeIndex : tectonicPlate.ownedCrustCells)
 		{
-			vertexColors[nodeIndex] = plateColor;
-			vertexRadii[nodeIndex] = myMesher->baseMeshRadius;
+			vertexColors[nodeIndex.gridLoc.tileIndex] = plateColor;
+			vertexRadii[nodeIndex.gridLoc.tileIndex] = myMesher->baseMeshRadius;
 		}
 		myMesher->debugLineOut->DrawPoint(myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[tectonicPlate.centerOfMassIndex])
 			* myMesher->baseMeshRadius*1.1, plateColor, 10, 2);
@@ -326,12 +330,17 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 	myMesher->buildNewMesh(vertexRadii, vertexColors, overlayMaterial);
 }
 
-FTectonicPlate UTectonicPlateSimulator::createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes) const
+FTectonicPlate UTectonicPlateSimulator::createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes)
 {
 	FTectonicPlate newPlate;
 	newPlate.plateIndex = plateIndex;
-	newPlate.ownedCrustCells = plateCellIndexes;
 	newPlate.currentVelocity = FVector(0, 0, 0);
+	newPlate.ownedCrustCells.Empty(plateCellIndexes.Num());
+	for (const int32& ownedCell : plateCellIndexes)
+	{
+		crustCells[ownedCell].owningPlate = newPlate.plateIndex;
+		newPlate.ownedCrustCells.Add(crustCells[ownedCell]);
+	}
 	updatePlateCenterOfMass(newPlate);
 	updatePlateBoundingRadius(newPlate);	
 	return newPlate;
@@ -347,12 +356,12 @@ void UTectonicPlateSimulator::updatePlateCenterOfMass(FTectonicPlate &newPlate) 
 	{
 		FVector massMomentArm(0, 0, 0);
 		float totalMass = 0.0;
-		for (const int32& plateCell : newPlate.ownedCrustCells)
+		for (const FCrustCellData& plateCell : newPlate.ownedCrustCells)
 		{
-			float cellMass = crustCells[plateCell].crustThickness*crustCells[plateCell].crustArea*crustCells[plateCell].crustDensity;
+			float cellMass = plateCell.crustThickness*plateCell.crustArea*plateCell.crustDensity;
 			totalMass += cellMass;
-			massMomentArm += cellMass * myGrid->getNodeLocationOnSphere(crustCells[plateCell].gridLoc)
-				*(myMesher->baseMeshRadius + crustCells[plateCell].cellHeight - crustCells[plateCell].crustThickness / 2);
+			massMomentArm += cellMass * myGrid->getNodeLocationOnSphere(plateCell.gridLoc)
+				*(myMesher->baseMeshRadius + plateCell.cellHeight - plateCell.crustThickness / 2);
 		}
 		FVector centerOfMass = massMomentArm / totalMass;
 		if (showPlateOverlay && plateToShowCenterOfMassDebugPoints == newPlate.plateIndex)
@@ -372,11 +381,128 @@ void UTectonicPlateSimulator::updatePlateBoundingRadius(FTectonicPlate& newPlate
 {
 	float boundingRadius = 0.0;
 	FVector plateCenterDir = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[newPlate.centerOfMassIndex]);
-	for (const int32& plateCell : newPlate.ownedCrustCells)
+	for (const FCrustCellData& plateCell : newPlate.ownedCrustCells)
 	{
-		FVector cellCenter = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[plateCell]);
+		FVector cellCenter = myGrid->getNodeLocationOnSphere(plateCell.gridLoc);
 		float cellArcDistance = FMath::Acos(FVector::DotProduct(plateCenterDir, cellCenter));
 		newPlate.plateBoundingRadius = FMath::Max(cellArcDistance, newPlate.plateBoundingRadius);
 	}
+}
+
+void UTectonicPlateSimulator::initializePlateDirections()
+{
+	FMath::RandInit(plateDirectionSeed);
+	for (FTectonicPlate& tecPlate : currentPlates)
+	{
+		FVector dirVector(FMath::FRandRange(-PI, PI), FMath::FRandRange(-PI, PI), 0);
+		dirVector /= FMath::Sqrt(FVector::DotProduct(dirVector, dirVector));
+		// set the initial velocity to be roughly one tile per step
+		dirVector *= FMath::FRandRange(0, (PI - FMath::Acos(FMath::Sqrt(5)/3.0))/myGrid->gridFrequency); 
+	}
+}
+
+void UTectonicPlateSimulator::erodeCell(FCrustCellData& targetCell)
+{
+	//for the moment we're going to simply apply a smoothing algorithm to mimic
+	//the effects of erosion, once we have a system for weather calculation
+	//we can use that to drive the erosion process
+	if (targetCell.cellHeight >= errosionHeightCutoff * SEA_LEVEL / 100.0)//the base continental crust height level value
+	{
+		//smooth the cell with it's neighbors
+		TArray<int32> crustNeighbors = myGrid->getTileNeighborIndexes(targetCell.gridLoc);
+
+		//find the lower neighbors
+		crustNeighbors.RemoveAll([&](const int32& neighborIndex)->bool
+		{
+			return crustCells[neighborIndex].cellHeight >= targetCell.cellHeight;
+		});
+		if (crustNeighbors.Num() == 0)
+		{
+			//we're the lowest point around, therefore we're done here
+			return;
+		}
+		//sort in descending order
+		crustNeighbors.Sort([&](const int32& neighbor1, const int32& neighbor2)->bool
+		{
+			return crustCells[neighbor1].cellHeight >= crustCells[neighbor2].cellHeight;
+		});
+
+		//find note the minimum height difference between this cell and its lower neighbors
+		//this represents the volume of material that would need to be removed to make the cell
+		//the same height as its next tallest neighbor
+		float minHeightDifference = targetCell.cellHeight - crustCells[crustNeighbors[0]].cellHeight;
+		//setting a maxErrosion amount allows for us to keep jagged cliffs for a time
+		if (minHeightDifference > SEA_LEVEL*maxErrosionAmount / 100.0)
+		{
+			minHeightDifference = SEA_LEVEL*maxErrosionAmount / 100.0;
+		}
+
+		//find the sum of the height differences between the cell's next tallest neighbor and the rest
+		//of its shorter neighbors. This represents the capacity of its neighbors to receive material
+		//without growing taller than the next tallest neighbor
+		float baseNeighborCapacity = 0.0;
+		for (const int32& neighborIndex : crustNeighbors)
+		{
+			baseNeighborCapacity += targetCell.cellHeight - minHeightDifference - crustCells[neighborIndex].cellHeight;
+		}
+
+		//two options, first the neighboring cells have enough capacity to receive all of the material to be removed
+		// or they don't. If they don't reduce the minHeightDifference to their total capacity
+		if (baseNeighborCapacity < minHeightDifference)
+		{
+			minHeightDifference = baseNeighborCapacity;
+		}
+
+		//now spread that total material about the lower neighbors
+		targetCell.cellHeight -= minHeightDifference;
+		TArray<int32> cellsToRelevel = crustNeighbors;
+		cellsToRelevel.Add(targetCell.gridLoc.tileIndex);
+		while (minHeightDifference > 0 && crustNeighbors.Num() > 0)
+		{
+			TArray<int32> indexesToRemove;
+			for (int32 neighborIndex = 0; neighborIndex < crustNeighbors.Num(); ++neighborIndex)
+			{
+				float amountToAdd = minHeightDifference / (crustNeighbors.Num() - neighborIndex);
+				// increase the neighbor to a maximum of the cell's new height
+				if (targetCell.cellHeight <= crustCells[crustNeighbors[neighborIndex]].cellHeight)
+				{
+					//this index is done
+					indexesToRemove.Add(crustNeighbors[neighborIndex]);
+				}
+				else if (targetCell.cellHeight >= crustCells[crustNeighbors[neighborIndex]].cellHeight + amountToAdd)
+				{
+					crustCells[crustNeighbors[neighborIndex]].cellHeight += amountToAdd;
+					crustCells[crustNeighbors[neighborIndex]].crustThickness += amountToAdd;
+					minHeightDifference -= amountToAdd;
+				}
+				else
+				{
+					minHeightDifference -= targetCell.cellHeight - crustCells[crustNeighbors[neighborIndex]].cellHeight;
+					crustCells[crustNeighbors[neighborIndex]].crustThickness += targetCell.cellHeight - crustCells[crustNeighbors[neighborIndex]].cellHeight;
+					crustCells[crustNeighbors[neighborIndex]].cellHeight = targetCell.cellHeight;
+					//this index is done
+					indexesToRemove.Add(crustNeighbors[neighborIndex]);
+				}
+			}
+			for (const int32& cellToRemove : indexesToRemove)
+			{
+				crustNeighbors.Remove(cellToRemove);
+			}
+		}
+		//anything we couldn't remove add it back to the cell;
+		targetCell.cellHeight += minHeightDifference;
+		for (const int32& cellIndexToUpdate : cellsToRelevel)
+		{
+			updateCrustCellHeight(crustCells[cellIndexToUpdate]);
+		}
+	}
+}
+
+void UTectonicPlateSimulator::updateCrustCellHeight(FCrustCellData& crustCell)
+{
+	//approx mass
+	float cellMass = crustCell.crustThickness*crustCell.crustDensity;
+	float cellDraft = cellMass / lithosphereDensity;
+	crustCell.cellHeight = crustCell.crustThickness - cellDraft;
 }
 
