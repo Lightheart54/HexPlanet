@@ -24,6 +24,10 @@ struct FCrustCellData
 	float crustDensity; //Gg/m^3
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	int32 owningPlate;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	int32 cellAge;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+	FVector2D cellVelocity;
 };
 
 USTRUCT(BlueprintType)
@@ -35,13 +39,16 @@ struct FTectonicPlate
 	int32 plateIndex;
 	//The indexes of the crust cells that this plate owns
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-	TArray<FCrustCellData> ownedCrustCells;
+	TArray<int32> ownedCrustCells;
 	//velocities in spherical coordinates and about the axis through the plate center of mass
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	FVector currentVelocity;
 	//crust cell about which the plate is centered
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	int32 centerOfMassIndex;
+	//plate total mass
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TectonicPlateSimulation")
+	float plateTotalMass;
 	
 	//the maximum arc distance on the plate from its center
 	//this is used to quickly determine which other plates it might overlap
@@ -150,6 +157,12 @@ public:
 	float errosionHeightCutoff;
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updateCrustCellHeight(FCrustCellData& crustCell);
+
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void updateCellLocation(FCrustCellData& cellToUpdate);
+
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	bool executeTimeStep();
 
 protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
