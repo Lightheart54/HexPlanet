@@ -37,15 +37,14 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	maxErrosionAmount = 0.1;
 	errosionHeightCutoff = 95;
 	radiusAboutCollisionCellToDistributeCrust = 5;
+	heightMapMaterial = nullptr;
+	overlayMeshIndex = -1;
+	heightMapMeshIndex = -1;
 
 	lithosphereDensity = 3.4;
 	oceanicCrustDensity = 3.0;
 	continentalCrustDensity = 2.6;
 	oceanicWaterDensity = 1.025;
-	elevationColorKey.Add(FColor::Black);
-	elevationColorKey.Add(FColor::Blue);
-	elevationColorKey.Add(FColor::Green);
-	elevationColorKey.Add(FColor::White);
 	// ...
 }
 
@@ -75,9 +74,6 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	TArray<float> initialHeightMap;
 	initialHeightMap.SetNumZeroed(myGrid->numNodes);
 	USimplexNoiseBPLibrary::setNoiseSeed(heightMapSeed);
-	float elevationStep = 4.0 / (elevationColorKey.Num());
-	TArray<FColor> indexColors;
-	indexColors.SetNumUninitialized(myGrid->numNodes);
 	for (int32 nodeIndex = 0; nodeIndex < myGrid->numNodes;++nodeIndex)
 	{
 		FVector nodeLocation = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[nodeIndex]);
@@ -88,22 +84,8 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 			nodeLocation *= 2;
 			magReduction *= 2;
 		}
-		initialHeightMap[nodeIndex] += 2; //normalize to be zero based
-		int32 colorChoice = FMath::FloorToInt((initialHeightMap[nodeIndex]) / elevationStep);
-		if (colorChoice >= myGrid->numNodes)
-		{
-			colorChoice = myGrid->numNodes - 1;
-		}
-		indexColors[nodeIndex] = elevationColorKey[colorChoice];
 	}
-
-	if (showBaseHeightMap)
-	{
-		TArray<float> overlayRadii;
-		overlayRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
-		myMesher->buildNewMesh(overlayRadii, indexColors, overlayMaterial);
-	}
-
+	
 	//create a distribution of the height map in order to separate between oceanic crust and 
 	//continental crust
 	TArray<float> heightToSort(initialHeightMap);
@@ -142,12 +124,16 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		crustCells[nodeIndex] = createBaseCrustCell(nodeIndex, initialHeightMap[nodeIndex]);
 	}
 	baseContinentalHeight *= continentalCrustFactor / baseOceanDepth;
+	if (showBaseHeightMap)
+	{
+		createHeightMapMesh();
+	}
 
 	if (showInitialContinents)
 	{
 		TArray<float> overlayRadii;
 		overlayRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
-		myMesher->buildNewMesh(overlayRadii, continentKeyColor, overlayMaterial);
+		overlayMeshIndex = myMesher->buildNewMesh(overlayRadii, continentKeyColor, overlayMaterial, overlayMeshIndex);
 	}
 }
 
@@ -772,4 +758,16 @@ bool UTectonicPlateSimulator::scatterMassOverArea(FTectonicPlate& targetPlate, T
 		transferCrustFromTargetCellToExistingCell(targetCell, collisionLocation, foldingRatio*locationArray[targetIndex] / totalNoise);
 	}
 	return potentialLocations.Num() != 0;
+}
+
+void UTectonicPlateSimulator::createHeightMapMesh()
+{
+	TArray<float> heightMapRadii;
+	heightMapRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
+	for (const FCrustCellData& cellData : crustCells)
+	{
+		heightMapRadii[cellData.gridLoc.tileIndex] += cellData.cellHeight;
+	}
+	TArray<FColor> indexColors;
+	heightMapMeshIndex = myMesher->buildNewMesh(heightMapRadii, indexColors, heightMapMaterial, heightMapMeshIndex);
 }

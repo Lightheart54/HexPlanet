@@ -75,6 +75,12 @@ public:
 		USphereGrid* myGrid;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseMesh")
 		UMaterialInterface* overlayMaterial;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BaseMesh")
+		int32 overlayMeshIndex;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		UMaterialInterface* heightMapMaterial;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "BaseMesh")
+		int32 heightMapMeshIndex;
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void generateInitialHeightMap();
@@ -98,8 +104,6 @@ public:
 		bool showInitialContinents;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "InitialHeightMap")
 		bool showBaseHeightMap;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "InitialHeightMap")
-		TArray<FColor> elevationColorKey;
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void buildTectonicPlates();
@@ -145,6 +149,8 @@ public:
 		float oceanicWaterDensity; //Gg/m^3
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void createHeightMapMesh();
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void initializePlateDirections();
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	int32 plateDirectionSeed;
@@ -184,5 +190,5 @@ protected:
 	void rebuildTectonicPlates(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed);
 	void meshTectonicPlateOverlay();
 	bool scatterMassOverArea(FTectonicPlate& targetPlate,const TArray<int32> potentialLocations,const FCrustCellData& collisionLocation, float foldingRatio);
-
+	
 };

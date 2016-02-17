@@ -16,13 +16,14 @@ UGridMesher::UGridMesher()
 	numMeshes = 0;
 
 	renderNodes = false;
-	//renderCorners = false;
+	renderBaseMesh;
 	debugLineOut = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugLineDrawer"));
 	//numberOfNodesToMesh = -1;
 }
 
 
-int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors, UMaterialInterface* newMeshMaterial)
+int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors, UMaterialInterface* newMeshMaterial,
+	int32 meshToRebuild /*= -1 if we're to build a new mesh*/)
 {
 	/*void CreateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices,
 	const TArray<int32>& Triangles, const TArray<FVector>& Normals,
@@ -71,10 +72,18 @@ int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<F
 		}
 	}
 
-	CreateMeshSection(numMeshes, Vertices, Triangles, Normals, UV0, vertexColors, Tangents, false);
-	SetMaterial(numMeshes, newMeshMaterial);
-	++numMeshes;
-	return numMeshes;
+	int32 targetMeshNum = numMeshes;
+	if (meshToRebuild != -1)
+	{
+		targetMeshNum = meshToRebuild;
+	}
+	CreateMeshSection(targetMeshNum, Vertices, Triangles, Normals, UV0, vertexColors, Tangents, false);
+	SetMaterial(targetMeshNum, newMeshMaterial);
+	if (meshToRebuild != -1)
+	{
+		++numMeshes;
+	}
+	return targetMeshNum;
 }
 
 void UGridMesher::rebuildBaseMeshFromGrid()
@@ -99,8 +108,10 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 				debugLineOut->DrawPoint(tilePos * baseMeshRadius, FLinearColor::Blue, 8, 2);
 			}
 		}
-
-		buildNewMesh(vertexRadii, vertexColors, baseMeshMaterial);
+		if (renderBaseMesh)
+		{
+			buildNewMesh(vertexRadii, vertexColors, baseMeshMaterial);
+		}
 	}
 }
 
