@@ -94,21 +94,21 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	int32 continentalCrustIndex = FMath::FloorToInt(heightToSort.Num()*(100-percentContinentalCrust) / 100.0);
 	float minHeight = heightToSort[0];
 	float maxHeight = heightToSort.Last();
-	float normalizationFactor = FMath::Max(FMath::Abs(maxHeight),FMath::Abs(minHeight));
-	baseContinentalHeight = heightToSort[continentalCrustIndex];
-	float baseOceanDepth = heightToSort[oceanDepthIndex];
+	float baseOceanDepth = heightToSort[oceanDepthIndex] - minHeight; //use this as the normalization factor so that seaLevel == 1
+	baseContinentalHeight = (heightToSort[continentalCrustIndex]-minHeight)/baseOceanDepth;
 	float oceanicCrustFactor = 0.1;
-	float continentalCrustFactor = 1.0;
+	float continentalCrustFactor = 0.5;
 	TArray<FColor> continentKeyColor;
 	continentKeyColor.SetNumZeroed(myGrid->numNodes);
 	crustCells.SetNumZeroed(myGrid->numNodes);
 	//normalize and separate into oceanic crust and continental crust
 	for (int32 nodeIndex = 0; nodeIndex < myGrid->numNodes; ++nodeIndex)
 	{
-		initialHeightMap[nodeIndex] /= normalizationFactor;
+		initialHeightMap[nodeIndex] -= minHeight;
+		initialHeightMap[nodeIndex] /= baseOceanDepth;
 		if (initialHeightMap[nodeIndex] >= baseContinentalHeight)
 		{
-			initialHeightMap[nodeIndex] *= continentalCrustFactor / baseOceanDepth;
+			initialHeightMap[nodeIndex] = baseOceanDepth + (initialHeightMap[nodeIndex] - baseOceanDepth)*continentalCrustFactor;
 			if (initialHeightMap[nodeIndex] >= SEA_LEVEL)
 			{
 				continentKeyColor[nodeIndex] = FColor::Green;
@@ -120,7 +120,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		}
 		else
 		{
-			initialHeightMap[nodeIndex] *= oceanicCrustFactor / baseOceanDepth;
+			initialHeightMap[nodeIndex] *= oceanicCrustFactor;
 			continentKeyColor[nodeIndex] = FColor::Blue;
 		}
 		crustCells[nodeIndex] = createBaseCrustCell(nodeIndex, initialHeightMap[nodeIndex]);
