@@ -94,6 +94,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	int32 continentalCrustIndex = FMath::FloorToInt(heightToSort.Num()*(100-percentContinentalCrust) / 100.0);
 	float minHeight = heightToSort[0];
 	float maxHeight = heightToSort.Last();
+	float normalizationFactor = FMath::Max(FMath::Abs(maxHeight),FMath::Abs(minHeight));
 	baseContinentalHeight = heightToSort[continentalCrustIndex];
 	float baseOceanDepth = heightToSort[oceanDepthIndex];
 	float oceanicCrustFactor = 0.1;
@@ -104,6 +105,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	//normalize and separate into oceanic crust and continental crust
 	for (int32 nodeIndex = 0; nodeIndex < myGrid->numNodes; ++nodeIndex)
 	{
+		initialHeightMap[nodeIndex] /= normalizationFactor;
 		if (initialHeightMap[nodeIndex] >= baseContinentalHeight)
 		{
 			initialHeightMap[nodeIndex] *= continentalCrustFactor / baseOceanDepth;
