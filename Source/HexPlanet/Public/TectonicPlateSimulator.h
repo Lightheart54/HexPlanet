@@ -37,9 +37,8 @@ struct FTectonicPlate
 	//The index of this plate
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	int32 plateIndex;
-	//The indexes of the crust cells that this plate owns
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
-	TArray<int32> ownedCrustCells;
+	//The crust cells that this plate owns
+	TMap<int32,FCrustCellData> ownedCrustCells;
 	//velocities in spherical coordinates and about the axis through the plate center of mass
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 	FVector currentVelocity;
@@ -110,7 +109,9 @@ public:
 	void updatePlateCenterOfMass(FTectonicPlate &newPlate) const;
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updatePlateBoundingRadius(FTectonicPlate& newPlate) const;
-
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	FCrustCellData& getPlateCrustCellRef(const int32& plateIndex, const int32& cellIndex);
+	FCrustCellData* getPlateCrustCellPtr(const int32& plateIndex, const int32& cellIndex);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
 		TArray<FTectonicPlate> currentPlates;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateGeneration")
@@ -157,6 +158,12 @@ public:
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0",
 			ToolTip = "The height at which errosion is cut off as a percentage of sea level"))
 	float errosionHeightCutoff;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		int32 radiusAboutCollisionCellToDistributeCrust;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TectonicPlateSimulation",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0",
+			ToolTip = "The amount of crust to be transfered during a collision"))
+		float foldingRatio;
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updateCrustCellHeight(FCrustCellData& crustCell);
 
@@ -165,6 +172,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	bool executeTimeStep();
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void transferCrustFromTargetCellToExistingCell(FCrustCellData &existingCrust,const FCrustCellData &targetCell, float percentCrustTransfer);
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void applyForceToPlate(FTectonicPlate& targetPlate, const FRectGridLocation& forceLocation, const FVector2D& sphericalForce);
 
 protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
@@ -172,4 +183,6 @@ protected:
 	void createVoronoiDiagramFromSeedSets(TArray<TArray<int32>>& seedSets, TArray<bool>& tileAvailability, const int32& maxNumIterations = -1);
 	void rebuildTectonicPlates(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed);
 	void meshTectonicPlateOverlay();
+	bool scatterMassOverArea(FTectonicPlate& targetPlate,const TArray<int32> potentialLocations,const FCrustCellData& collisionLocation, float foldingRatio);
+
 };
