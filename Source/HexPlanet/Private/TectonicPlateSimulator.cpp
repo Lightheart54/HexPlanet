@@ -32,6 +32,8 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	percentOcean = 60;
 	percentContinentalCrust = 65;
 	baseContinentalHeight = 0.95;
+	oceanicCrustRoughnessFactor = 0.4;
+	continentalCrustFactorRoughness = 0.5;
 	showInitialContinents = false;
 	plateDirectionSeed = FMath::Rand();
 	maxErrosionAmount = 0.1;
@@ -41,6 +43,7 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	overlayMeshIndex = -1;
 	heightMapMeshIndex = -1;
 
+	simulationTimeStep = 0;
 	lithosphereDensity = 3.4;
 	oceanicCrustDensity = 3.0;
 	continentalCrustDensity = 2.6;
@@ -91,13 +94,11 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	TArray<float> heightToSort(initialHeightMap);
 	heightToSort.Sort();
 	int32 oceanDepthIndex = FMath::FloorToInt(heightToSort.Num()*percentOcean / 100.0);
-	int32 continentalCrustIndex = FMath::FloorToInt(heightToSort.Num()*(100-percentContinentalCrust) / 100.0);
+	int32 continentalCrustIndex = FMath::FloorToInt(heightToSort.Num()*(100.0-percentContinentalCrust) / 100.0);
 	float minHeight = heightToSort[0];
 	float maxHeight = heightToSort.Last();
 	float baseOceanDepth = heightToSort[oceanDepthIndex] - minHeight; //use this as the normalization factor so that seaLevel == 1
 	baseContinentalHeight = (heightToSort[continentalCrustIndex]-minHeight)/baseOceanDepth;
-	float oceanicCrustFactor = 0.1;
-	float continentalCrustFactor = 0.5;
 	TArray<FColor> continentKeyColor;
 	continentKeyColor.SetNumZeroed(myGrid->numNodes);
 	crustCells.SetNumZeroed(myGrid->numNodes);
@@ -108,7 +109,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		initialHeightMap[nodeIndex] /= baseOceanDepth;
 		if (initialHeightMap[nodeIndex] >= baseContinentalHeight)
 		{
-			initialHeightMap[nodeIndex] = baseOceanDepth + (initialHeightMap[nodeIndex] - baseOceanDepth)*continentalCrustFactor;
+			initialHeightMap[nodeIndex] = SEA_LEVEL + (initialHeightMap[nodeIndex] - SEA_LEVEL)*continentalCrustFactorRoughness;
 			if (initialHeightMap[nodeIndex] >= SEA_LEVEL)
 			{
 				continentKeyColor[nodeIndex] = FColor::Green;
@@ -120,12 +121,14 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		}
 		else
 		{
-			initialHeightMap[nodeIndex] *= oceanicCrustFactor;
+			initialHeightMap[nodeIndex] -= baseContinentalHeight / 2.0; //center the oceanic crust about a 0 height
+			initialHeightMap[nodeIndex] *= oceanicCrustRoughnessFactor; //scale it by the roughness factor
+			initialHeightMap[nodeIndex] += baseContinentalHeight * oceanicCrustRoughnessFactor / 2.0; //re-baseline it so that the minimum value is 0.0
 			continentKeyColor[nodeIndex] = FColor::Blue;
 		}
 		crustCells[nodeIndex] = createBaseCrustCell(nodeIndex, initialHeightMap[nodeIndex]);
 	}
-	baseContinentalHeight *= continentalCrustFactor / baseOceanDepth;
+	baseContinentalHeight *= continentalCrustFactorRoughness / baseOceanDepth;
 	if (showBaseHeightMap)
 	{
 		createHeightMapMesh();
@@ -146,13 +149,13 @@ FCrustCellData UTectonicPlateSimulator::createBaseCrustCell(const int32& cellInd
 	newCellData.gridLoc = myGrid->gridLocationsM[cellIndex];
 	newCellData.cellHeight = cellHeight;
 	newCellData.owningPlate = -1;
-	newCellData.cellTimeStamp = 0;
+	newCellData.cellTimeStamp = simulationTimeStep;
 	//get the cell area
 	//approximately 4*pi*radius^2/numNodes
 	newCellData.crustArea = 4 * PI*FMath::Pow(myMesher->baseMeshRadius, 2) / myGrid->numNodes;
 	float crustMass = continentalCrustDensity*newCellData.crustArea;
 
-	if (cellHeight < 1.0)
+	if (cellHeight < SEA_LEVEL)
 	{
 		float lowerThickness = ((SEA_LEVEL - cellHeight)*oceanicWaterDensity + cellHeight*oceanicCrustDensity) / (lithosphereDensity - oceanicCrustDensity);
 		newCellData.crustThickness = cellHeight + lowerThickness;
@@ -699,6 +702,16 @@ bool UTectonicPlateSimulator::executeTimeStep()
 			applyForceToPlate(targetPlate, targetCell.gridLoc, (targetCell.cellVelocity - collisionLocation->cellVelocity)*massToKeep);
 		}
 	}
+
+	//finally create new crust where we don't have a plate owning the area
+	for (int32 locationIndex = 0; locationIndex < claimedLocations.Num(); ++locationIndex)
+	{
+		if (!claimedLocations[locationIndex])
+		{
+			buildNewCrustFromPlateDivergence(locationIndex);
+		}
+	}
+
 	//return whether or not we had any continental collisions
 	return collisions.Num() > 0;
 }
@@ -736,7 +749,7 @@ void UTectonicPlateSimulator::applyForceToPlate(FTectonicPlate& targetPlate, con
 }
 
 
-bool UTectonicPlateSimulator::scatterMassOverArea(FTectonicPlate& targetPlate, TArray<int32> potentialLocations,const FCrustCellData& collisionLocation, float foldingRatio)
+bool UTectonicPlateSimulator::scatterMassOverArea(FTectonicPlate& targetPlate, TArray<int32> potentialLocations,const FCrustCellData& collisionLocation, float transferRatio)
 {
 	potentialLocations.RemoveAll([&targetPlate](const int32& cellIndex)->bool
 	{
@@ -760,6 +773,14 @@ bool UTectonicPlateSimulator::scatterMassOverArea(FTectonicPlate& targetPlate, T
 		transferCrustFromTargetCellToExistingCell(targetCell, collisionLocation, foldingRatio*locationArray[targetIndex] / totalNoise);
 	}
 	return potentialLocations.Num() != 0;
+}
+
+void UTectonicPlateSimulator::buildNewCrustFromPlateDivergence(const int32& locationIndex)
+{
+	FCrustCellData newCrust = createBaseCrustCell(locationIndex, baseContinentalHeight * 0.1);
+	newCrust.owningPlate = crustCells[locationIndex].owningPlate;
+	currentPlates[newCrust.owningPlate].ownedCrustCells.Add(locationIndex, newCrust);
+	crustCells[locationIndex] = newCrust;
 }
 
 void UTectonicPlateSimulator::createHeightMapMesh()

@@ -98,6 +98,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "InitialHeightMap",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 		float percentContinentalCrust;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0",
+			ToolTip = "The roughness of the initial oceanic crust"))
+		float oceanicCrustRoughnessFactor;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation",
+		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0",
+			ToolTip = "The roughness of the initial continental crust"))
+		float continentalCrustFactorRoughness;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "InitialHeightMap")
 		float baseContinentalHeight;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay , Category = "InitialHeightMap")
@@ -166,22 +174,26 @@ public:
 	float errosionHeightCutoff;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
 		int32 radiusAboutCollisionCellToDistributeCrust;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TectonicPlateSimulation")
+		int32 simulationTimeStep;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TectonicPlateSimulation",
 		meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0",
 			ToolTip = "The amount of crust to be transfered during a collision"))
 		float foldingRatio;
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updateCrustCellHeight(FCrustCellData& crustCell);
-
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updateCellLocation(FCrustCellData& cellToUpdate);
-
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	bool executeTimeStep();
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void transferCrustFromTargetCellToExistingCell(FCrustCellData &existingCrust,const FCrustCellData &targetCell, float percentCrustTransfer);
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void applyForceToPlate(FTectonicPlate& targetPlate, const FRectGridLocation& forceLocation, const FVector2D& sphericalForce);
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	void buildNewCrustFromPlateDivergence(const int32& locationIndex);
+	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
+	bool scatterMassOverArea(FTectonicPlate& targetPlate, const TArray<int32> potentialLocations, const FCrustCellData& collisionLocation, float transferRatio);
 
 protected:
 	void addNewSeedSetsToSetArray(TArray<bool> &usedTiles, TArray<TArray<int32>> &plateSets, const int32& numNewSets);
@@ -189,6 +201,6 @@ protected:
 	void createVoronoiDiagramFromSeedSets(TArray<TArray<int32>>& seedSets, TArray<bool>& tileAvailability, const int32& maxNumIterations = -1);
 	void rebuildTectonicPlates(TArray<TArray<int32>>& plateSets, const float& percentTilesForReseed);
 	void meshTectonicPlateOverlay();
-	bool scatterMassOverArea(FTectonicPlate& targetPlate,const TArray<int32> potentialLocations,const FCrustCellData& collisionLocation, float foldingRatio);
 	
+
 };
