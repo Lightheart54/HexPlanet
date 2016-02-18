@@ -16,6 +16,7 @@ AMapActor::AMapActor()
 	gridMesher->myGrid = sphereGrid;
 	plateSimul->myGrid = sphereGrid;
 	plateSimul->myMesher = gridMesher;
+	framesPerRotation = 2000;
 }
 
 // Called when the game starts or when spawned
@@ -31,6 +32,14 @@ void AMapActor::BeginPlay()
 void AMapActor::Tick( float DeltaTime )
 {
 	Super::Tick( DeltaTime );
+
+	//rotate the sphere
+	if (framesPerRotation > 0)
+	{
+		FRotator currentRotation = GetActorRotation();
+		currentRotation.Yaw += 360.0 / framesPerRotation;
+		SetActorRotation(currentRotation);
+	}
 
 }
 

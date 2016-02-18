@@ -325,7 +325,7 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 			break;
 		}
 	}
-	myMesher->buildNewMesh(vertexRadii, vertexColors, overlayMaterial);
+	overlayMeshIndex = myMesher->buildNewMesh(vertexRadii, vertexColors, overlayMaterial, overlayMeshIndex);
 }
 
 FCrustCellData* UTectonicPlateSimulator::getPlateCrustCellPtr(const int32& plateIndex, const int32& cellIndex)

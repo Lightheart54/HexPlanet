@@ -31,4 +31,7 @@ public:
 		USphereGrid* sphereGrid;	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapRepresentation")
 		UTectonicPlateSimulator* plateSimul;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MapRepresentation")
+		int32 framesPerRotation;
 };
