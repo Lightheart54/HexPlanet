@@ -40,4 +40,5 @@ public:
 	USphereGrid* myGrid;
 
 	void rebuildBaseMeshFromGrid();
+	FVector calculateVertexNormal(const FRectGridLocation& gridLoc, const TArray<float>& vertexRadii) const;
 };

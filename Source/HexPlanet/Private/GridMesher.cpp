@@ -38,8 +38,9 @@ int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<F
 	for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
 	{
 		FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc);
-		Normals.Add(tilePos);
 		Vertices.Add(tilePos * vertexRadii[gridLoc.tileIndex]);
+		FVector vertexNormal = calculateVertexNormal(gridLoc, vertexRadii);
+		Normals.Add(vertexNormal);
 	}
 
 	for (int32 uLoc = 0; uLoc < myGrid->rectilinearGridM.Num(); ++uLoc)
@@ -113,5 +114,26 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 			buildNewMesh(vertexRadii, vertexColors, baseMeshMaterial);
 		}
 	}
+}
+
+FVector UGridMesher::calculateVertexNormal(const FRectGridLocation& gridLoc, const TArray<float>& vertexRadii) const
+{
+	FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc) * vertexRadii[gridLoc.tileIndex];
+	TArray<int32> tileNeighbors = myGrid->getTileNeighborIndexes(gridLoc);
+	FVector vertexNormal(0.0,0.0,0.0);
+	for (int32 neighborNum = 0; neighborNum < tileNeighbors.Num(); ++neighborNum)
+	{
+		int32 neighbor2Num = neighborNum + 1;
+		if (neighbor2Num == tileNeighbors.Num())
+		{
+			neighbor2Num = 0;
+		}
+		vertexNormal += FVector::CrossProduct(myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[tileNeighbors[neighborNum]])*vertexRadii[tileNeighbors[neighborNum]],
+			myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[tileNeighbors[neighbor2Num]])*vertexRadii[tileNeighbors[neighbor2Num]]);
+	}
+	vertexNormal /= tileNeighbors.Num();
+	vertexNormal /= FMath::Sqrt(FVector::DotProduct(vertexNormal, vertexNormal));
+	vertexNormal *= -1; //need it to face out
+	return vertexNormal;
 }
 
