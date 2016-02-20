@@ -13,7 +13,7 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	bWantsBeginPlay = true;
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 
 	myMesher = nullptr; 
 	myGrid = nullptr;
@@ -42,8 +42,10 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	heightMapMaterial = nullptr;
 	overlayMeshIndex = -1;
 	heightMapMeshIndex = -1;
+	updateMesh = false;
 
 	simulationTimeStep = 0;
+	maxTimeSteps = -1;
 	lithosphereDensity = 3.4;
 	oceanicCrustDensity = 3.0;
 	continentalCrustDensity = 2.6;
@@ -66,7 +68,28 @@ void UTectonicPlateSimulator::BeginPlay()
 void UTectonicPlateSimulator::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
 {
 	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
-
+	
+	if (!updateMesh)
+	{
+		if (simulationTimeStep < maxTimeSteps || maxTimeSteps < 0)
+		{
+			executeTimeStep();
+		}
+		updateMesh = true;
+	}
+	else
+	{
+		if (showPlateOverlay)
+		{
+			meshTectonicPlateOverlay();
+		}
+		else if (showBaseHeightMap)
+		{
+			createHeightMapMesh();
+		}
+		updateMesh = false;
+	}
+	
 	// ...
 }
 
@@ -312,9 +335,8 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 		uint8 gValue = FMath::FRandRange(0.0, 255);
 		uint8 bValue = FMath::FRandRange(0.0, 255);
 		FColor plateColor(rValue, gValue, bValue);
-		for (const TPair<int32,FCrustCellData>& nodeCell : tectonicPlate.ownedCrustCells)
+		for (const int32& nodeIndex : tectonicPlate.ownedCrustCells)
 		{
-			const int32& nodeIndex = nodeCell.Key;
 			vertexColors[nodeIndex] = plateColor;
 			vertexRadii[nodeIndex] = myMesher->baseMeshRadius;
 		}
@@ -328,16 +350,6 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 	overlayMeshIndex = myMesher->buildNewMesh(vertexRadii, vertexColors, overlayMaterial, overlayMeshIndex);
 }
 
-FCrustCellData* UTectonicPlateSimulator::getPlateCrustCellPtr(const int32& plateIndex, const int32& cellIndex)
-{
-	return &(currentPlates[plateIndex].ownedCrustCells[cellIndex]);
-}
-
-FCrustCellData& UTectonicPlateSimulator::getPlateCrustCellRef(const int32& plateIndex, const int32& cellIndex)
-{
-	return currentPlates[plateIndex].ownedCrustCells[cellIndex];
-}
-
 FTectonicPlate UTectonicPlateSimulator::createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes)
 {
 	FTectonicPlate newPlate;
@@ -347,7 +359,7 @@ FTectonicPlate UTectonicPlateSimulator::createTectonicPlate(const int32& plateIn
 	for (const int32& ownedCell : plateCellIndexes)
 	{
 		crustCells[ownedCell].owningPlate = newPlate.plateIndex;
-		newPlate.ownedCrustCells.Add(ownedCell,crustCells[ownedCell]);
+		newPlate.ownedCrustCells.Add(ownedCell);
 	}
 	updatePlateCenterOfMass(newPlate);
 	updatePlateBoundingRadius(newPlate);	
@@ -364,10 +376,9 @@ void UTectonicPlateSimulator::updatePlateCenterOfMass(FTectonicPlate &newPlate) 
 	{
 		FVector massMomentArm(0, 0, 0);
 		float totalMass = 0.0;
-		for (const TPair<int32, FCrustCellData>& plateCellPair : newPlate.ownedCrustCells)
+		for (const int32& plateCellIndex : newPlate.ownedCrustCells)
 		{
-			const FCrustCellData& plateCell = plateCellPair.Value;
-			const int32& plateCellIndex = plateCellPair.Key;
+			const FCrustCellData& plateCell = crustCells[plateCellIndex];
 			float cellMass = plateCell.crustThickness*plateCell.crustArea*plateCell.crustDensity;
 			totalMass += cellMass;
 			massMomentArm += cellMass * myGrid->getNodeLocationOnSphere(plateCell.gridLoc)
@@ -392,10 +403,9 @@ void UTectonicPlateSimulator::updatePlateBoundingRadius(FTectonicPlate& newPlate
 {
 	float boundingRadius = 0.0;
 	FVector plateCenterDir = myGrid->getNodeLocationOnSphere(myGrid->gridLocationsM[newPlate.centerOfMassIndex]);
-	for (const TPair<int32, FCrustCellData>& plateCellPair : newPlate.ownedCrustCells)
+	for (const int32& plateCellIndex : newPlate.ownedCrustCells)
 	{
-		const FCrustCellData& plateCell = plateCellPair.Value;
-		const int32& plateCellIndex = plateCellPair.Key;
+		const FCrustCellData& plateCell = crustCells[plateCellIndex];
 		FVector cellCenter = myGrid->getNodeLocationOnSphere(plateCell.gridLoc);
 		float cellArcDistance = FMath::Acos(FVector::DotProduct(plateCenterDir, cellCenter));
 		newPlate.plateBoundingRadius = FMath::Max(cellArcDistance, newPlate.plateBoundingRadius);
@@ -410,7 +420,8 @@ void UTectonicPlateSimulator::initializePlateDirections()
 		FVector dirVector(FMath::FRandRange(-PI, PI), FMath::FRandRange(-PI, PI), 0);
 		dirVector /= FMath::Sqrt(FVector::DotProduct(dirVector, dirVector));
 		// set the initial velocity to be roughly one tile per step
-		dirVector *= FMath::FRandRange(0, (PI - FMath::Acos(FMath::Sqrt(5)/3.0))/myGrid->gridFrequency); 
+		dirVector *= FMath::FRandRange(0, (PI - FMath::Acos(FMath::Sqrt(5)/3.0))/myGrid->gridFrequency);
+		tecPlate.currentVelocity = dirVector;
 	}
 }
 
@@ -544,6 +555,7 @@ void UTectonicPlateSimulator::updateCellLocation(FCrustCellData& cellToUpdate)
 	//TODO add shear to this to model the tearing that would occur far from the plate center of rotation
 	FVector rotatedCellLocationOnSphere = cellLocationOnSphere.RotateAngleAxis(plateVelocity.Z * 180.0 / PI, plateLocationOnSphere);
 	//now find the new location on the sphere from the angular rotation about the sphere center
+	rotatedCellLocationOnSphere /= FMath::Sqrt(FVector::DotProduct(rotatedCellLocationOnSphere, rotatedCellLocationOnSphere));
 	FVector2D cellSphericalLocation = rotatedCellLocationOnSphere.UnitCartesianToSpherical();
 	cellSphericalLocation.X += plateVelocity.X;
 	cellSphericalLocation.Y += plateVelocity.Y;
@@ -556,162 +568,163 @@ void UTectonicPlateSimulator::updateCellLocation(FCrustCellData& cellToUpdate)
 
 bool UTectonicPlateSimulator::executeTimeStep()
 {
-	//first errode the cells
 	for (FCrustCellData& crustData : crustCells)
 	{
+		//first erode the cells
 		erodeCell(crustData);
 	}
-	// now update their heights and update their owning plates
-	for (FCrustCellData& crustData : crustCells)
-	{
-		updateCrustCellHeight(crustData);
-		currentPlates[crustData.owningPlate].ownedCrustCells[crustData.gridLoc.tileIndex] = crustData;
-	}
 
+
+	//next move them
 	//set up a array to indicate which cells have been claimed post move
 	TArray<bool> claimedLocations;
 	claimedLocations.Init(false, crustCells.Num());
+	TArray<FCrustCellData> newCrustCells;
+	newCrustCells.SetNumZeroed(crustCells.Num());
 
-	//now plate by plate rebuild the crustCells information
-	TArray<FCrustCellData*> subductions;
-	TArray<FCrustCellData*> collisions;
-	for (FTectonicPlate& tecPlate : currentPlates)
+
+	TArray<FCrustCellData> subductions;
+	TArray<FCrustCellData> collisions;
+	for (FCrustCellData& crustData : crustCells)
 	{
-		TMap<int32, FCrustCellData> newPlateMap;
-		for (TPair<int32, FCrustCellData>& plateCellPair : tecPlate.ownedCrustCells)
+		//move the cell
+		updateCellLocation(crustData);
+		int32 crustDataIndex = crustData.gridLoc.tileIndex;
+
+		//now check for collisions
+		if (!claimedLocations[crustDataIndex])
 		{
-			FCrustCellData& crustData = plateCellPair.Value;
-			updateCellLocation(crustData);
-			int32 crustDataIndex = crustData.gridLoc.tileIndex;
+			//this location hasn't been claimed yet no collision here
+			claimedLocations[crustDataIndex] = true;
+			newCrustCells[crustDataIndex] = crustData;
+			continue;
+			//we're done here
+		}
 
-			if (newPlateMap.Contains(crustDataIndex))
+		if (newCrustCells[crustDataIndex].owningPlate == crustData.owningPlate)
+		{
+			//we're piling up on ourselves
+			//just add our mass to the existing tile mass
+			transferCrustFromTargetCellToExistingCell(newCrustCells[crustDataIndex], crustData, 1.0);
+
+			//we're done here
+			continue;
+		}
+
+		//we have a collision
+		const bool prev_is_oceanic = crustCells[crustDataIndex].cellHeight < baseContinentalHeight;
+		const bool this_is_oceanic = crustData.cellHeight < baseContinentalHeight;
+
+		int32 prev_TimeStamp = newCrustCells[crustDataIndex].cellTimeStamp;
+		int32 my_TimeStamp = crustData.cellTimeStamp;
+		//find out which cell gets subducted (i.e. is less buoyant), 
+		//its either the lower one or the younger one
+		const bool prev_is_buoyant = (newCrustCells[crustDataIndex].cellHeight > crustData.cellHeight)
+			|| ((newCrustCells[crustDataIndex].cellHeight + 2 * std::numeric_limits<float>::epsilon() > crustData.cellHeight)
+				&& (newCrustCells[crustDataIndex].cellHeight < crustData.cellHeight + 2 * std::numeric_limits<float>::epsilon())
+				&& (prev_TimeStamp >= my_TimeStamp)); //if they're effectively the same height take the younger one
+
+		if (this_is_oceanic && prev_is_buoyant)
+		{
+			//this plate is being subducted
+			//we're going underneath the other plate
+			subductions.Add(crustData);
+		}
+		else if (prev_is_oceanic)
+		{
+			//this other plate is being subducted
+			//add a reference to the previous ownerPlate's local crustcell
+			subductions.Add(newCrustCells[crustDataIndex]);
+			newCrustCells[crustDataIndex] = crustData;
+		}
+		else
+		{
+			//we're just straight colliding
+			//the bigger plate gets ownership
+			if (currentPlates[crustData.owningPlate].plateTotalMass > currentPlates[newCrustCells[crustDataIndex].owningPlate].plateTotalMass)
 			{
-				//we're piling up on ourselves
-				//just add our mass to the existing tile mass
-				transferCrustFromTargetCellToExistingCell(newPlateMap[crustDataIndex], crustData, 1.0);
-				
-				//we're done here
-				continue;
-			}
-
-			crustData = newPlateMap.Add(crustDataIndex, crustData);
-			if (!claimedLocations[crustDataIndex])
-			{
-				//this location hasn't been claimed yet no collision here
-				claimedLocations[crustDataIndex] = true;
-				crustCells[crustDataIndex] = crustData;
-				continue;
-				//we're done here
-			}
-
-			//we have a collision
-			const bool prev_is_oceanic = crustCells[crustDataIndex].cellHeight < baseContinentalHeight;
-			const bool this_is_oceanic = crustData.cellHeight < baseContinentalHeight;
-
-			int32 prev_TimeStamp = crustCells[crustDataIndex].cellTimeStamp;
-			int32 my_TimeStamp = crustData.cellTimeStamp;
-			//find out which cell gets subducted (i.e. is less buoyant), 
-			//its either the lower one or the younger one
-			const bool prev_is_buoyant = (crustCells[crustDataIndex].cellHeight > crustData.cellHeight)
-				|| ((crustCells[crustDataIndex].cellHeight + 2 * std::numeric_limits<float>::epsilon() > crustData.cellHeight)
-					&& (crustCells[crustDataIndex].cellHeight < crustData.cellHeight + 2 * std::numeric_limits<float>::epsilon())
-					&& (prev_TimeStamp >= my_TimeStamp)); //if they're effectively the same height take the younger one
-
-			if (this_is_oceanic && prev_is_buoyant)
-			{
-				//this plate is being subducted
-				//we're going underneath the other plate
-				subductions.Add(&crustData);
-			}
-			else if (prev_is_oceanic)
-			{
-				//this other plate is being subducted
-				//add a reference to the previous ownerPlate's local crustcell
-				subductions.Add(getPlateCrustCellPtr(crustCells[crustDataIndex].owningPlate, crustDataIndex));
-				crustCells[crustDataIndex] = crustData;
+				//we're the bigger plate, take ownership
+				collisions.Add(newCrustCells[crustDataIndex]);
+				newCrustCells[crustDataIndex] = crustData;
 			}
 			else
 			{
-				//we're just straight colliding
-				//the bigger plate gets ownership
-				if (tecPlate.plateTotalMass > currentPlates[crustCells[crustDataIndex].owningPlate].plateTotalMass)
-				{
-					//we're the bigger plate, take ownership
-					collisions.Add(getPlateCrustCellPtr(crustCells[crustDataIndex].owningPlate, crustDataIndex));
-					crustCells[crustDataIndex] = crustData;
-				}
-				else
-				{
-					collisions.Add(&crustData);
-				}
+				collisions.Add(crustData);
 			}
-			tecPlate.ownedCrustCells = newPlateMap;
+		}
+
+	}
+
+	//create new crust where we don't have a plate owning the area
+	for (int32 locationIndex = 0; locationIndex < claimedLocations.Num(); ++locationIndex)
+	{
+		if (!claimedLocations[locationIndex])
+		{
+			buildNewCrustFromPlateDivergence(locationIndex, newCrustCells);
 		}
 	}
 
+	//transfer the data
+	crustCells = newCrustCells;
+
+	for (FTectonicPlate& tecPlate : currentPlates)
+	{
+		tecPlate.ownedCrustCells.SetNum(0);
+	}
+
+	//now we can update the plates as to who the own now
+	for (FCrustCellData& crustData : crustCells)
+	{
+		currentPlates[crustData.owningPlate].ownedCrustCells.Add(crustData.gridLoc.tileIndex);
+	}
+
 	//alright, now we can handle each collision
-	for (FCrustCellData* collisionLocation : subductions)
+	for (FCrustCellData& collisionLocation : subductions)
 	{
 		//the amount of crust that gets scrapped off is based upon how hard the
 		//plate will be pushed against the overlapping plate once it is no longer held down
 		//by water
 		//right now we're going to say that its everything about the isostatic zero line
-		float percentCrustToTransfer = collisionLocation->crustDensity / lithosphereDensity;
-		FCrustCellData& targetCell = crustCells[collisionLocation->gridLoc.tileIndex];
+		float percentCrustToTransfer = collisionLocation.crustDensity / lithosphereDensity;
+		FCrustCellData& targetCell = newCrustCells[collisionLocation.gridLoc.tileIndex];
 		//get the cells surrounding the targetCell
-		TArray<int32> potentialLocations = myGrid->getTileIndexesNStepsAway(collisionLocation->gridLoc, radiusAboutCollisionCellToDistributeCrust);
+		TArray<int32> potentialLocations = myGrid->getTileIndexesNStepsAway(collisionLocation.gridLoc, radiusAboutCollisionCellToDistributeCrust);
 		FTectonicPlate& targetPlate = currentPlates[targetCell.owningPlate];
-		//transfer the crust to some random location near the collision location on on the plate
-		potentialLocations.RemoveAll([&targetPlate](const int32& cellIndex)->bool
-		{
-			return targetPlate.ownedCrustCells.Contains(cellIndex);
-		});
-		int32 plIndex = FMath::RandRange(0, potentialLocations.Num() - 1);
-		targetCell = targetPlate.ownedCrustCells[potentialLocations[plIndex]];
-		float massTransfered = percentCrustToTransfer*collisionLocation->crustThickness*collisionLocation->crustDensity;
-		transferCrustFromTargetCellToExistingCell(targetCell, *collisionLocation, percentCrustToTransfer);
-		//remove the subducted index from its plate
-		//may add additional things here later to drive back basin and volcano formation
-		currentPlates[collisionLocation->owningPlate].ownedCrustCells.Remove(collisionLocation->gridLoc.tileIndex);
-		//apply force to the target plate equal to the force applied to the dislocated crust
-		FVector2D velocityChange = targetCell.cellVelocity - collisionLocation->cellVelocity;
+		scatterMassOverArea(targetPlate, potentialLocations, collisionLocation, percentCrustToTransfer);
+		float massTransfered = percentCrustToTransfer*collisionLocation.crustThickness*collisionLocation.crustDensity;
+		FVector2D velocityChange = targetCell.cellVelocity - collisionLocation.cellVelocity;
 		velocityChange *= massTransfered;
 		applyForceToPlate(targetPlate,targetCell.gridLoc, velocityChange);
 	}
-	for (FCrustCellData* collisionLocation : collisions)
+	for (FCrustCellData& collisionLocation : collisions)
 	{
 		//we're going to scatter the crust from the collision around the area,
 		//with the folding ratio being transfered to the new plate and the rest staying on this plate
-		FCrustCellData& targetCell = crustCells[collisionLocation->gridLoc.tileIndex];
+		FCrustCellData& targetCell = crustCells[collisionLocation.gridLoc.tileIndex];
 		FTectonicPlate& targetPlate = currentPlates[targetCell.owningPlate];
-		FTectonicPlate& smallerPlate = currentPlates[collisionLocation->owningPlate];
-		float dyingCellMass = collisionLocation->crustDensity*collisionLocation->crustThickness;
+		FTectonicPlate& smallerPlate = currentPlates[collisionLocation.owningPlate];
+		float dyingCellMass = collisionLocation.crustDensity*collisionLocation.crustThickness;
 		float massToTransfer = dyingCellMass*foldingRatio;
 		float massToKeep = dyingCellMass - massToTransfer;
-		applyForceToPlate(targetPlate, targetCell.gridLoc, (targetCell.cellVelocity-collisionLocation->cellVelocity)*massToTransfer);
-		applyForceToPlate(smallerPlate, targetCell.gridLoc, (collisionLocation->cellVelocity-targetCell.cellVelocity)*massToTransfer);
+		applyForceToPlate(targetPlate, targetCell.gridLoc, (targetCell.cellVelocity-collisionLocation.cellVelocity)*massToTransfer);
+		applyForceToPlate(smallerPlate, targetCell.gridLoc, (collisionLocation.cellVelocity-targetCell.cellVelocity)*massToTransfer);
 		//get the cells surrounding the targetCell
-		TArray<int32> potentialLocations = myGrid->getTileIndexesNStepsAway(collisionLocation->gridLoc, radiusAboutCollisionCellToDistributeCrust);
-		scatterMassOverArea(targetPlate, potentialLocations, *collisionLocation, foldingRatio);
-		FCrustCellData dataCache = *collisionLocation;
-		smallerPlate.ownedCrustCells.Remove(targetCell.gridLoc.tileIndex);
-		if (!scatterMassOverArea(smallerPlate, potentialLocations, dataCache, 1-foldingRatio))
+		TArray<int32> potentialLocations = myGrid->getTileIndexesNStepsAway(collisionLocation.gridLoc, radiusAboutCollisionCellToDistributeCrust);
+		scatterMassOverArea(targetPlate, potentialLocations, collisionLocation, foldingRatio);
+		if (!scatterMassOverArea(smallerPlate, potentialLocations, collisionLocation, 1-foldingRatio))
 		{
 			//if there isn't anywhere left on the smaller plate to recieve it, put it all on the bigger plate
-			scatterMassOverArea(targetPlate, potentialLocations, dataCache, 1 - foldingRatio);
-			applyForceToPlate(targetPlate, targetCell.gridLoc, (targetCell.cellVelocity - collisionLocation->cellVelocity)*massToKeep);
+			scatterMassOverArea(targetPlate, potentialLocations, collisionLocation, 1 - foldingRatio);
+			applyForceToPlate(targetPlate, targetCell.gridLoc, (targetCell.cellVelocity - collisionLocation.cellVelocity)*massToKeep);
 		}
 	}
 
-	//finally create new crust where we don't have a plate owning the area
-	for (int32 locationIndex = 0; locationIndex < claimedLocations.Num(); ++locationIndex)
+	for (FTectonicPlate& tecPlate : currentPlates)
 	{
-		if (!claimedLocations[locationIndex])
-		{
-			buildNewCrustFromPlateDivergence(locationIndex);
-		}
+		updatePlateCenterOfMass(tecPlate);
 	}
 
+	++simulationTimeStep;
 	//return whether or not we had any continental collisions
 	return collisions.Num() > 0;
 }
@@ -724,11 +737,6 @@ void UTectonicPlateSimulator::transferCrustFromTargetCellToExistingCell(FCrustCe
 	existingCrust.crustThickness = totalThickness;
 	existingCrust.crustDensity = weightedDensity / totalThickness;
 	updateCrustCellHeight(existingCrust);
-	//update the main heightmap if necessary
-	if (crustCells[existingCrust.gridLoc.tileIndex].owningPlate == existingCrust.owningPlate)
-	{
-		crustCells[existingCrust.gridLoc.tileIndex] = existingCrust;
-	}
 }
 
 void UTectonicPlateSimulator::applyForceToPlate(FTectonicPlate& targetPlate, const FRectGridLocation& forceLocation, const FVector2D& sphericalForce)
@@ -751,16 +759,16 @@ void UTectonicPlateSimulator::applyForceToPlate(FTectonicPlate& targetPlate, con
 
 bool UTectonicPlateSimulator::scatterMassOverArea(FTectonicPlate& targetPlate, TArray<int32> potentialLocations,const FCrustCellData& collisionLocation, float transferRatio)
 {
-	potentialLocations.RemoveAll([&targetPlate](const int32& cellIndex)->bool
+	potentialLocations.RemoveAll([&](const int32& cellIndex)->bool
 	{
-		return targetPlate.ownedCrustCells.Contains(cellIndex);
+		return crustCells[cellIndex].owningPlate != targetPlate.plateIndex;
 	});
 	//get noise for each location
 	TArray<float> locationArray;
 	float totalNoise = 0.0;
 	for (const int32& targetLoc : potentialLocations)
 	{
-		FVector2D targetSphericalLoc = myGrid->getNodeLocationOnSphere(targetPlate.ownedCrustCells[targetLoc].gridLoc).UnitCartesianToSpherical();
+		FVector2D targetSphericalLoc = myGrid->getNodeLocationOnSphere(crustCells[targetLoc].gridLoc).UnitCartesianToSpherical();
 		float locationNoise = USimplexNoiseBPLibrary::SimplexNoiseInRange2D(targetSphericalLoc.X, targetSphericalLoc.Y, 0.0, 1.0);
 		totalNoise += locationNoise;
 		locationArray.Add(locationNoise);
@@ -769,18 +777,17 @@ bool UTectonicPlateSimulator::scatterMassOverArea(FTectonicPlate& targetPlate, T
 	//and add that much mass to that cell
 	for (int32 targetIndex = 0; targetIndex < potentialLocations.Num(); ++targetIndex)
 	{
-		FCrustCellData& targetCell = targetPlate.ownedCrustCells[potentialLocations[targetIndex]];
+		FCrustCellData& targetCell = crustCells[potentialLocations[targetIndex]];
 		transferCrustFromTargetCellToExistingCell(targetCell, collisionLocation, foldingRatio*locationArray[targetIndex] / totalNoise);
 	}
 	return potentialLocations.Num() != 0;
 }
 
-void UTectonicPlateSimulator::buildNewCrustFromPlateDivergence(const int32& locationIndex)
+void UTectonicPlateSimulator::buildNewCrustFromPlateDivergence(const int32& locationIndex, TArray<FCrustCellData>& newCrustDataArray)
 {
 	FCrustCellData newCrust = createBaseCrustCell(locationIndex, baseContinentalHeight * 0.1);
 	newCrust.owningPlate = crustCells[locationIndex].owningPlate;
-	currentPlates[newCrust.owningPlate].ownedCrustCells.Add(locationIndex, newCrust);
-	crustCells[locationIndex] = newCrust;
+	newCrustDataArray[locationIndex] = newCrust;
 }
 
 void UTectonicPlateSimulator::createHeightMapMesh()
