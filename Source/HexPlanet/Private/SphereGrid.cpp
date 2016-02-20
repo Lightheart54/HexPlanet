@@ -447,7 +447,12 @@ int32 USphereGrid::mapPosToTileIndex(FVector positionOnSphere, ULineBatchCompone
 	{
 		vInc -= gridFrequency;
 	}
-	return rectilinearGridM[uRef1 + uInc][vRef11 + vInc];
+	uRef1 += uInc;
+	if (uRef1 >= 5* gridFrequency)
+	{
+		uRef1 -= 5 * gridFrequency;
+	}
+	return rectilinearGridM[uRef1][vRef11 + vInc];
 }
 
 FVector USphereGrid::getNodeLocationOnSphereUV(const int32& uLoc, const int32& vLoc) const
