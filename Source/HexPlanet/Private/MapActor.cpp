@@ -26,6 +26,7 @@ void AMapActor::BeginPlay()
 	gridMesher->rebuildBaseMeshFromGrid();
 	plateSimul->generateInitialHeightMap();
 	plateSimul->buildTectonicPlates();
+	plateSimul->initializePlateDirections();
 }
 
 // Called every frame
