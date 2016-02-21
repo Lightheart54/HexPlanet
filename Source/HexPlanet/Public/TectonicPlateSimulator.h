@@ -184,6 +184,9 @@ public:
 	void updateCrustCellHeight(FCrustCellData& crustCell);
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	void updateCellLocation(FCrustCellData& cellToUpdate);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TectonicPlateSimulation")
+		bool runSimulation;
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")
 	bool executeTimeStep();
 	UFUNCTION(BlueprintCallable, Category = "TectonicPlateSimulation")

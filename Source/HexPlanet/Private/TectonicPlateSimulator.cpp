@@ -43,6 +43,7 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	overlayMeshIndex = -1;
 	heightMapMeshIndex = -1;
 	updateMesh = false;
+	runSimulation = false;
 
 	simulationTimeStep = 0;
 	maxTimeSteps = -1;
@@ -69,7 +70,7 @@ void UTectonicPlateSimulator::TickComponent( float DeltaTime, ELevelTick TickTyp
 {
 	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
 	
-	if (!updateMesh)
+	if (!updateMesh && runSimulation)
 	{
 		if (simulationTimeStep < maxTimeSteps || maxTimeSteps < 0)
 		{
@@ -161,7 +162,7 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 	{
 		TArray<float> overlayRadii;
 		overlayRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
-		overlayMeshIndex = myMesher->buildNewMesh(overlayRadii, continentKeyColor, overlayMaterial, overlayMeshIndex);
+		overlayMeshIndex = myMesher->buildNewMesh(overlayRadii, continentKeyColor, TArray<FVector>(), overlayMaterial, overlayMeshIndex);
 	}
 }
 
@@ -347,7 +348,7 @@ void UTectonicPlateSimulator::meshTectonicPlateOverlay()
 			break;
 		}
 	}
-	overlayMeshIndex = myMesher->buildNewMesh(vertexRadii, vertexColors, overlayMaterial, overlayMeshIndex);
+	overlayMeshIndex = myMesher->buildNewMesh(vertexRadii, vertexColors, TArray<FVector>(), overlayMaterial, overlayMeshIndex);
 }
 
 FTectonicPlate UTectonicPlateSimulator::createTectonicPlate(const int32& plateIndex, const TArray<int32>& plateCellIndexes)
@@ -794,10 +795,29 @@ void UTectonicPlateSimulator::createHeightMapMesh()
 {
 	TArray<float> heightMapRadii;
 	heightMapRadii.Init(myMesher->baseMeshRadius, myGrid->numNodes);
+	TArray<float> baseHeight;
+	baseHeight.Init(myMesher->baseMeshRadius, myGrid->numNodes);
+	TArray<FColor> indexColors;
+	TArray<FVector> vertexNormals;
+	indexColors.SetNumZeroed(myGrid->numNodes);
+	vertexNormals.SetNumZeroed(myGrid->numNodes);
 	for (const FCrustCellData& cellData : crustCells)
 	{
 		heightMapRadii[cellData.gridLoc.tileIndex] += cellData.cellHeight;
 	}
-	TArray<FColor> indexColors;
-	heightMapMeshIndex = myMesher->buildNewMesh(heightMapRadii, indexColors, heightMapMaterial, heightMapMeshIndex);
+	for (const FCrustCellData& cellData : crustCells)
+	{
+		FVector vertexNormal = myMesher->calculateVertexNormal(cellData.gridLoc, heightMapRadii);
+		vertexNormals.Add(vertexNormal);
+		//indexColors[cellData.gridLoc.tileIndex] = FLinearColor(
+		//	(vertexNormal.X + 1.0f) / 2.0f,
+		//	(vertexNormal.Y + 1.0f) / 2.0f,
+		//	(vertexNormal.Z + 1.0f) / 2.0f,
+		//	(cellData.cellHeight) / 2.0).ToFColor(false);
+		indexColors[cellData.gridLoc.tileIndex] = FLinearColor(0.0,
+			0.0,
+			0.0,
+			(cellData.cellHeight) / 2.0).ToFColor(false);
+	}
+	heightMapMeshIndex = myMesher->buildNewMesh(baseHeight, indexColors, vertexNormals, heightMapMaterial, heightMapMeshIndex);
 }

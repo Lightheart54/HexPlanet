@@ -22,13 +22,15 @@ UGridMesher::UGridMesher()
 }
 
 
-int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors, UMaterialInterface* newMeshMaterial,
+int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors,
+	const TArray<FVector>& vertexNormals, UMaterialInterface* newMeshMaterial,
 	int32 meshToRebuild /*= -1 if we're to build a new mesh*/)
 {
 	/*void CreateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices,
 	const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 	const TArray<FVector2D>& UV0, const TArray<FColor>& VertexColors,
 	const TArray<FProcMeshTangent>& Tangents, bool bCreateCollision);*/
+	bool calcNormals = vertexNormals.Num() == 0;
 	TArray<FVector> Vertices;
 	TArray<int32> Triangles;
 	TArray<FVector> Normals;
@@ -39,8 +41,15 @@ int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<F
 	{
 		FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc);
 		Vertices.Add(tilePos * vertexRadii[gridLoc.tileIndex]);
-		FVector vertexNormal = calculateVertexNormal(gridLoc, vertexRadii);
-		Normals.Add(vertexNormal);
+		if (calcNormals)
+		{
+			Normals.Add(vertexNormals[gridLoc.tileIndex]);
+		}
+		else
+		{
+			FVector vertexNormal = calculateVertexNormal(gridLoc, vertexRadii);
+			Normals.Add(vertexNormal);
+		}
 	}
 
 	for (int32 uLoc = 0; uLoc < myGrid->rectilinearGridM.Num(); ++uLoc)
@@ -111,7 +120,7 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 		}
 		if (renderBaseMesh)
 		{
-			buildNewMesh(vertexRadii, vertexColors, baseMeshMaterial);
+			buildNewMesh(vertexRadii, vertexColors,TArray<FVector>(), baseMeshMaterial);
 		}
 	}
 }

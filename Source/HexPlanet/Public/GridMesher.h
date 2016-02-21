@@ -34,7 +34,7 @@ public:
 
 
 	UFUNCTION(BlueprintCallable, Category = "MeshProduction")
-	int32 buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors, UMaterialInterface* newMeshMaterial, int32 meshToRebuild = -1);
+	int32 buildNewMesh(const TArray<float>& vertexRadii, const TArray<FColor>& vertexColors, const TArray<FVector>& vertexNormals, UMaterialInterface* newMeshMaterial, int32 meshToRebuild = -1);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseMesh")
 	USphereGrid* myGrid;
