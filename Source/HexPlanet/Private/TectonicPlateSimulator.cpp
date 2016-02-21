@@ -147,12 +147,12 @@ void UTectonicPlateSimulator::generateInitialHeightMap()
 		{
 			initialHeightMap[nodeIndex] -= baseContinentalHeight / 2.0; //center the oceanic crust about a 0 height
 			initialHeightMap[nodeIndex] *= oceanicCrustRoughnessFactor; //scale it by the roughness factor
-			initialHeightMap[nodeIndex] += baseContinentalHeight * oceanicCrustRoughnessFactor / 2.0; //re-baseline it so that the minimum value is 0.0
+			initialHeightMap[nodeIndex] += (baseContinentalHeight / 2.0) * oceanicCrustRoughnessFactor ; //re-baseline it so that the minimum value is 0.0
 			continentKeyColor[nodeIndex] = FColor::Blue;
 		}
 		crustCells[nodeIndex] = createBaseCrustCell(nodeIndex, initialHeightMap[nodeIndex]);
 	}
-	baseContinentalHeight *= continentalCrustFactorRoughness / baseOceanDepth;
+	baseContinentalHeight = SEA_LEVEL - (SEA_LEVEL - baseContinentalHeight)*continentalCrustFactorRoughness;
 	if (showBaseHeightMap)
 	{
 		createHeightMapMesh();
