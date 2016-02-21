@@ -13,7 +13,7 @@ UTectonicPlateSimulator::UTectonicPlateSimulator()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	bWantsBeginPlay = true;
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 
 	myMesher = nullptr; 
 	myGrid = nullptr;
@@ -75,10 +75,10 @@ void UTectonicPlateSimulator::TickComponent( float DeltaTime, ELevelTick TickTyp
 		if (simulationTimeStep < maxTimeSteps || maxTimeSteps < 0)
 		{
 			executeTimeStep();
+			updateMesh = true;
 		}
-		updateMesh = true;
 	}
-	else
+	else if(updateMesh)
 	{
 		if (showPlateOverlay)
 		{
@@ -747,9 +747,20 @@ void UTectonicPlateSimulator::applyForceToPlate(FTectonicPlate& targetPlate, con
 	FVector2D forceLoc = myGrid->getNodeLocationOnSphere(forceLocation).UnitCartesianToSpherical();
 	FVector2D forceMomentArm = forceLoc - plateCenter;
 	//break the force down into it's components;
-	FVector2D momentArmDir = forceMomentArm / FMath::Sqrt(FVector2D::DotProduct(forceMomentArm, forceMomentArm));
-	FVector2D alignedForce = FVector2D::DotProduct(sphericalForce, momentArmDir)*momentArmDir;
-	float forceTorque = FVector2D::CrossProduct(sphericalForce, forceMomentArm);
+	float forceMomentArmLength = forceMomentArm.Size();
+	FVector2D alignedForce(0.0,0.0);
+	float forceTorque = 0.0;
+	if (forceMomentArmLength > std::numeric_limits<float>::epsilon())
+	{
+		FVector2D momentArmDir = forceMomentArm / FMath::Sqrt(FVector2D::DotProduct(forceMomentArm, forceMomentArm));
+		alignedForce = FVector2D::DotProduct(sphericalForce, momentArmDir)*momentArmDir;
+		forceTorque = FVector2D::CrossProduct(sphericalForce, forceMomentArm);
+	}
+	else
+	{
+		alignedForce = sphericalForce;
+		forceTorque = 0.0;
+	}
 	FVector plateAcceleration;
 	plateAcceleration.X = alignedForce.X / targetPlate.plateTotalMass;
 	plateAcceleration.Y = alignedForce.Y / targetPlate.plateTotalMass;
