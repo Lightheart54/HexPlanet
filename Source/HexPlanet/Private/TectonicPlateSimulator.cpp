@@ -607,6 +607,9 @@ bool UTectonicPlateSimulator::executeTimeStep()
 			//we're piling up on ourselves
 			//just add our mass to the existing tile mass
 			transferCrustFromTargetCellToExistingCell(newCrustCells[crustDataIndex], crustData, 1.0);
+			//average the two
+			/*newCrustCells[crustDataIndex].crustThickness /= 2.0;
+			updateCrustCellHeight(newCrustCells[crustDataIndex]);*/
 
 			//we're done here
 			continue;
@@ -824,7 +827,7 @@ void UTectonicPlateSimulator::createHeightMapMesh()
 	for (const FCrustCellData& cellData : crustCells)
 	{
 		FVector vertexNormal = myMesher->calculateVertexNormal(cellData.gridLoc, heightMapRadii);
-		vertexNormals.Add(vertexNormal);
+		vertexNormals[cellData.gridLoc.tileIndex] = vertexNormal;
 		//indexColors[cellData.gridLoc.tileIndex] = FLinearColor(
 		//	(vertexNormal.X + 1.0f) / 2.0f,
 		//	(vertexNormal.Y + 1.0f) / 2.0f,
