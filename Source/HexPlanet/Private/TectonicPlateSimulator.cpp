@@ -620,10 +620,15 @@ bool UTectonicPlateSimulator::executeTimeStep()
 		int32 my_TimeStamp = crustData.cellTimeStamp;
 		//find out which cell gets subducted (i.e. is less buoyant), 
 		//its either the lower one or the younger one
+		
 		const bool prev_is_buoyant = (newCrustCells[crustDataIndex].cellHeight > crustData.cellHeight)
 			|| ((newCrustCells[crustDataIndex].cellHeight + 2 * std::numeric_limits<float>::epsilon() > crustData.cellHeight)
 				&& (newCrustCells[crustDataIndex].cellHeight < crustData.cellHeight + 2 * std::numeric_limits<float>::epsilon())
-				&& (prev_TimeStamp >= my_TimeStamp)); //if they're effectively the same height take the younger one
+				&& ((prev_TimeStamp > my_TimeStamp) //if they're effectively the same height take the younger one
+					|| (prev_TimeStamp == my_TimeStamp  //in order to maintain a consistent choice, if they are the same age,
+														//take the plate with the lower index number
+						&& newCrustCells[crustDataIndex].owningPlate < crustData.owningPlate ))); 
+						  
 
 		if (this_is_oceanic && prev_is_buoyant)
 		{

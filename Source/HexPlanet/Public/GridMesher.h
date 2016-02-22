@@ -26,11 +26,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	bool renderNodes; 
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
+	bool renderNodeIndexes;
+	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	bool renderBaseMesh;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MeshProperties")
 	UMaterialInterface* baseMeshMaterial;
 	UPROPERTY(EditAnywhere, Category = "DebugGridProperties")
 	ULineBatchComponent* debugLineOut;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DebugGridProperties")
+	UMaterialInterface* textMaterial;
+	TArray<USceneComponent*> debugTextOutArray;
 
 
 	UFUNCTION(BlueprintCallable, Category = "MeshProduction")

@@ -16,8 +16,11 @@ UGridMesher::UGridMesher()
 	numMeshes = 0;
 
 	renderNodes = false;
-	renderBaseMesh;
+	renderNodeIndexes = false;
+	textMaterial = nullptr;
+	renderBaseMesh = false;
 	debugLineOut = CreateDefaultSubobject<ULineBatchComponent>(TEXT("DebugLineDrawer"));
+	debugLineOut->AttachTo(this);
 	//numberOfNodesToMesh = -1;
 }
 
@@ -37,18 +40,47 @@ int32 UGridMesher::buildNewMesh(const TArray<float>& vertexRadii, const TArray<F
 	TArray<FVector2D> UV0;
 	TArray<FProcMeshTangent> Tangents;
 
+	if (debugTextOutArray.Num() != 0)
+	{
+		for (USceneComponent* debugText : debugTextOutArray)
+		{
+			debugText->DetachFromParent();
+			debugText->DestroyComponent();
+		}
+	}
+	debugLineOut->Flush();
+
+
 	for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
 	{
 		FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc);
 		Vertices.Add(tilePos * vertexRadii[gridLoc.tileIndex]);
 		if (calcNormals)
 		{
-			Normals.Add(vertexNormals[gridLoc.tileIndex]);
+			FVector vertexNormal = calculateVertexNormal(gridLoc, vertexRadii);
+			Normals.Add(vertexNormal);
 		}
 		else
 		{
-			FVector vertexNormal = calculateVertexNormal(gridLoc, vertexRadii);
-			Normals.Add(vertexNormal);
+			Normals.Add(vertexNormals[gridLoc.tileIndex]);
+		}
+		if (renderNodes)
+		{
+			debugLineOut->DrawPoint(tilePos * baseMeshRadius, FLinearColor::Blue, 8, 2);
+		}
+		if (renderNodeIndexes)
+		{
+			UTextRenderComponent* nodeTextId = NewObject<UTextRenderComponent>(this);
+			nodeTextId->RegisterComponent();
+			nodeTextId->SetRelativeLocation(tilePos * (baseMeshRadius*1.01));
+			nodeTextId->SetText(FText::FromString(FString::FromInt(gridLoc.tileIndex)));
+			nodeTextId->SetTextRenderColor(FColor::Red);
+			nodeTextId->SetWorldSize(baseMeshRadius / 50.0f);
+			FVector xAxis(1.0, 0.0, 0.0);
+			FRotator textRotator = Normals[gridLoc.tileIndex].Rotation() - xAxis.Rotation();
+			nodeTextId->AddRelativeRotation(textRotator);
+			nodeTextId->AttachTo(this);
+			debugTextOutArray.Add(nodeTextId);
 		}
 	}
 
@@ -100,24 +132,14 @@ void UGridMesher::rebuildBaseMeshFromGrid()
 {
 	ClearAllMeshSections();
 	numMeshes = 0;
-	debugLineOut->Flush();
 
 	if (myGrid != nullptr)
 	{
 		TArray<float> vertexRadii;
-		vertexRadii.SetNumZeroed(myGrid->gridLocationsM.Num());
+		vertexRadii.Init(baseMeshRadius, myGrid->numNodes);
 		TArray<FColor> vertexColors;
-		vertexColors.SetNumZeroed(myGrid->gridLocationsM.Num());
-		for (const FRectGridLocation& gridLoc : myGrid->gridLocationsM)
-		{
-			FVector tilePos = myGrid->getNodeLocationOnSphere(gridLoc);
-			vertexRadii[gridLoc.tileIndex] = baseMeshRadius;
-			vertexColors[gridLoc.tileIndex] = FColor::Blue;
-			if (renderNodes)
-			{
-				debugLineOut->DrawPoint(tilePos * baseMeshRadius, FLinearColor::Blue, 8, 2);
-			}
-		}
+		vertexColors.Init(FColor::Blue, myGrid->numNodes);
+		
 		if (renderBaseMesh)
 		{
 			buildNewMesh(vertexRadii, vertexColors,TArray<FVector>(), baseMeshMaterial);
